@@ -1,0 +1,36 @@
+{
+  "name": "hardware-controller",
+  "version": "1.0.0",
+  "description": "Hardware Controller Web Application",
+  "main": "index.html",
+  "type": "module",
+  "scripts": {
+    "start": "serve .",
+    "dev": "serve . --single",
+    "build": "rollup -c",
+    "deploy": "npm run build && npx serve ."
+  },
+  "dependencies": {
+    "@angular/common": "^21.0.0",
+    "@angular/compiler": "^21.0.0",
+    "@angular/core": "^21.0.0",
+    "@angular/forms": "^21.0.0",
+    "@angular/platform-browser": "^21.0.0",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-replace": "^5.0.5",
+    "rollup": "^4.6.1",
+    "tailwindcss": "^4.1.17"
+  },
+  "keywords": [
+    "serial",
+    "hardware",
+    "angular",
+    "controller"
+  ],
+  "author": "",
+  "license": "MIT"
+}

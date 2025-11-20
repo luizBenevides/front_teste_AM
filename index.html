@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hardware Controller</title>
+  <style>
+    /* Reset e Base */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #0f172a;
+      color: #ffffff;
+      line-height: 1.5;
+    }
+    
+    /* Layout Utilities */
+    .container { max-width: 80rem; margin: 0 auto; }
+    .mx-auto { margin-left: auto; margin-right: auto; }
+    .p-4 { padding: 1rem; }
+    .p-3 { padding: 0.75rem; }
+    .px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+    .px-4 { padding-left: 1rem; padding-right: 1rem; }
+    .py-1\.5 { padding-top: 0.375rem; padding-bottom: 0.375rem; }
+    .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+    .pb-2 { padding-bottom: 0.5rem; }
+    .mb-4 { margin-bottom: 1rem; }
+    .mr-2 { margin-right: 0.5rem; }
+    .space-y-4 > * + * { margin-top: 1rem; }
+    .space-y-6 > * + * { margin-top: 1.5rem; }
+    .gap-2 { gap: 0.5rem; }
+    .gap-3 { gap: 0.75rem; }
+    .gap-4 { gap: 1rem; }
+    
+    /* Grid */
+    .grid { display: grid; }
+    .grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+    .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .grid-cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    
+    /* Flex */
+    .flex { display: flex; }
+    .flex-wrap { flex-wrap: wrap; }
+    .flex-col { flex-direction: column; }
+    .flex-grow { flex-grow: 1; }
+    .flex-shrink-0 { flex-shrink: 0; }
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    
+    /* Typography */
+    .text-3xl { font-size: 1.875rem; line-height: 2.25rem; }
+    .text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+    .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+    .text-xs { font-size: 0.75rem; line-height: 1rem; }
+    .font-bold { font-weight: 700; }
+    .font-semibold { font-weight: 600; }
+    .font-mono { font-family: monospace; }
+    
+    /* Colors */
+    .text-cyan-400 { color: #22d3ee; }
+    .text-slate-300 { color: #ffffff; }
+    .text-slate-400 { color: #ffffff; }
+    .text-slate-500 { color: #e2e8f0; }
+    .text-green-400 { color: #4ade80; }
+    .text-red-400 { color: #f87171; }
+    .text-yellow-400 { color: #facc15; }
+    .text-lime-400 { color: #a3e635; }
+    .text-white { color: white; }
+    
+    /* Backgrounds */
+    .bg-slate-800\/50 { background-color: rgba(30, 41, 59, 0.5); }
+    .bg-slate-900\/50 { background-color: rgba(15, 23, 42, 0.5); }
+    .bg-slate-900\/70 { background-color: rgba(15, 23, 42, 0.7); }
+    .bg-slate-700 { background-color: #334155; }
+    .bg-red-900\/50 { background-color: rgba(127, 29, 29, 0.5); }
+    
+    /* Borders */
+    .border { border-width: 1px; }
+    .border-slate-700 { border-color: #334155; }
+    .border-slate-600 { border-color: #475569; }
+    .border-b { border-bottom-width: 1px; }
+    .border-red-700 { border-color: #b91c1c; }
+    .rounded-lg { border-radius: 0.5rem; }
+    .rounded-md { border-radius: 0.375rem; }
+    
+    /* Sizing */
+    .w-full { width: 100%; }
+    .w-24 { width: 6rem; }
+    .w-3 { width: 0.75rem; }
+    .h-full { height: 100%; }
+    .h-3 { height: 0.75rem; }
+    .h-96 { height: 24rem; }
+    .h-5 { height: 1.25rem; }
+    .max-w-7xl { max-width: 80rem; }
+    
+    /* Position */
+    .relative { position: relative; }
+    .absolute { position: absolute; }
+    .top-1 { top: 0.25rem; }
+    .right-1 { right: 0.25rem; }
+    
+    /* Display */
+    .block { display: block; }
+    .inline-flex { display: inline-flex; }
+    .overflow-y-auto { overflow-y: auto; }
+    
+    /* Responsive */
+    @media (min-width: 1024px) {
+      .lg\\:col-span-2 { grid-column: span 2 / span 2; }
+      .lg\\:col-span-1 { grid-column: span 1 / span 1; }
+      .lg\\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .lg\\:grid-cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+      .lg\\:p-6 { padding: 1.5rem; }
+    }
+    @media (min-width: 640px) {
+      .sm\\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .sm\\:inline { display: inline; }
+    }
+    @media (min-width: 768px) {
+      .md\\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+    
+    /* Animations */
+    @keyframes ping {
+      75%, 100% { transform: scale(2); opacity: 0; }
+    }
+    .animate-ping { animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite; }
+    
+    /* Opacity */
+    .opacity-75 { opacity: 0.75; }
+    
+    /* Transitions */
+    .transition-colors { transition: background-color 0.15s, color 0.15s; }
+    
+    /* Hover states */
+    .hover\\:bg-cyan-500:hover { background-color: #06b6d4; }
+    .hover\\:bg-red-500:hover { background-color: #ef4444; }
+    .hover\\:bg-indigo-500:hover { background-color: #6366f1; }
+    .hover\\:bg-teal-500:hover { background-color: #14b8a6; }
+    .hover\\:bg-sky-500:hover { background-color: #0ea5e9; }
+    .hover\\:bg-orange-500:hover { background-color: #f97316; }
+    .hover\\:bg-green-600:hover { background-color: #16a34a; }
+    .hover\\:bg-yellow-500:hover { background-color: #eab308; }
+    .hover-slate-600-70:hover { background-color: rgba(71, 85, 105, 0.7); }
+    
+    /* Disabled states */
+    .disabled\\:bg-slate-600:disabled { background-color: #475569; }
+    .disabled-slate-700-50:disabled { background-color: rgba(51, 65, 85, 0.5); }
+    .disabled\\:cursor-not-allowed:disabled { cursor: not-allowed; }
+    
+    /* Focus states */
+    .focus\\:ring-2:focus { box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.5); }
+    .focus\\:ring-cyan-500:focus { --tw-ring-color: #06b6d4; }
+    .focus\\:outline-none:focus { outline: none; }
+    
+    .control-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: rgb(255, 255, 255);
+      font-weight: bold;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      transition: background-color 0.2s;
+      border: none;
+      cursor: pointer;
+    }
+    .black-btn {
+      background-color: #000000 !important;
+    }
+
+    .black-btn:hover:not(:disabled) {
+      background-color: #333333 !important;
+    }
+
+    .black-btn:disabled {
+      background-color: #6b7280 !important; /* slate-600 */
+    }
+    .control-btn:disabled {
+      background-color: rgb(71 85 105);
+      cursor: not-allowed;
+    }
+    .action-btn {
+      background-color: rgb(8 145 178);
+      color: rgb(54, 52, 52);
+      font-weight: 600;
+      padding: 0.375rem 1rem;
+      border-radius: 0.375rem;
+      transition: background-color 0.2s;
+      border: none;
+      cursor: pointer;
+    }
+    .action-btn:hover:not(:disabled) {
+      background-color: rgb(6 182 212);
+    }
+    .action-btn:disabled {
+      background-color: rgb(0, 0, 0);
+      cursor: not-allowed;
+    }
+    .form-input {
+      background-color: rgb(51 65 85);
+      border: 1px solid rgb(71 85 105);
+      border-radius: 0.375rem;
+      padding: 0.375rem 0.75rem;
+      color: white;
+    }
+    
+    /* Forçar texto branco em elementos específicos */
+    input, select, span, label, div {
+      color: rgb(255, 255, 255) !important;
+    }
+    
+    /* Texto preto para botões */
+    button {
+      color: rgb(251, 251, 251) !important;
+    }
+    
+    /* Exceções para elementos que devem manter cores específicas */
+    .text-cyan-400, .text-green-400, .text-red-400, .text-yellow-400, .text-lime-400 {
+      color: inherit !important;
+    }
+    .form-input:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px rgb(6 182 212);
+    }
+    
+    /* Specific background colors for buttons */
+    .bg-cyan-600 { background-color: #0891b2; }
+    .bg-red-600 { background-color: #dc2626; }
+    .bg-indigo-600 { background-color: #4f46e5; }
+    .bg-teal-600 { background-color: #0d9488; }
+    .bg-sky-600 { background-color: #0284c7; }
+    .bg-orange-600 { background-color: #ea580c; }
+    .bg-green-700 { background-color: #15803d; }
+    .bg-yellow-600 { background-color: #ca8a04; }
+  </style>
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-200">
+  <app-root></app-root>
+  <script type="module" src="./dist/bundle.js"></script>
+</body>
+</html>
