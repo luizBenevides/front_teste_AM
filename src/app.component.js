@@ -131,6 +131,16 @@ export const AppComponent = Component({
         <div>
           <h2 class="text-lg font-semibold text-slate-300 border-b border-slate-600 pb-2 mb-4">🎮 Teste dos Botões do Controle</h2>
           
+          <!-- Teste de Pressão Simples -->
+          <div class="flex flex-wrap items-center gap-3 bg-slate-900/50 p-3 rounded-md mb-3">
+            <button (click)="testarPressao()" [disabled]="!isConnected() || isRunningSequence() || isRunningLoop()" class="control-btn bg-yellow-600 hover:bg-yellow-500">
+              👆 Só Pressionar
+            </button>
+            <div class="text-xs text-slate-400">
+              Apenas pressiona e solta o botão (sem movimento)
+            </div>
+          </div>
+
           <!-- Teste Manual Individual -->
           <div class="flex flex-wrap items-center gap-3 bg-slate-900/50 p-3 rounded-md mb-3">
             <button (click)="executeManualButtonTest()" [disabled]="!isConnected() || isRunningSequence() || isRunningLoop()" class="control-btn bg-blue-600 hover:bg-blue-500">
@@ -473,6 +483,67 @@ export const AppComponent = Component({
     }
     
     this.isRunningSequence.set(false);
+  }
+
+  // Função para testar apenas a pressão do botão (sem movimento)
+  async testarPressao() {
+    if (this.isRunningSequence() || this.isRunningLoop()) {
+      return;
+    }
+    
+    this.isRunningSequence.set(true);
+    
+    this.logMessages.update(logs => [...logs, { 
+      timestamp: new Date().toLocaleTimeString(), 
+      message: '=== TESTE DE PRESSÃO ===', 
+      type: 'info' 
+    }]);
+
+    try {
+      // Apenas pressiona e solta, sem movimento
+      if (this.getPort1Id()) {
+        // Pressiona
+        await this.serialService.sendCommand('P_1', false, this.getPort1Id());
+        this.logMessages.update(logs => [...logs, { 
+          timestamp: new Date().toLocaleTimeString(), 
+          message: '👆 Pressionando botão...', 
+          type: 'info' 
+        }]);
+        
+        await this.delay(1000); // Mantém pressionado por 1 segundo
+
+        // Libera
+        await this.serialService.sendCommand('P_0', false, this.getPort1Id());
+        this.logMessages.update(logs => [...logs, { 
+          timestamp: new Date().toLocaleTimeString(), 
+          message: '✋ Liberando botão...', 
+          type: 'info' 
+        }]);
+        
+        await this.delay(500);
+      } else {
+        this.logMessages.update(logs => [...logs, { 
+          timestamp: new Date().toLocaleTimeString(), 
+          message: '❌ Porta 1 não conectada!', 
+          type: 'error' 
+        }]);
+      }
+
+      this.logMessages.update(logs => [...logs, { 
+        timestamp: new Date().toLocaleTimeString(), 
+        message: '✅ Teste de pressão concluído', 
+        type: 'info' 
+      }]);
+
+    } catch (error) {
+      this.logMessages.update(logs => [...logs, { 
+        timestamp: new Date().toLocaleTimeString(), 
+        message: `❌ Erro no teste de pressão: ${error.message}`, 
+        type: 'error' 
+      }]);
+    } finally {
+      this.isRunningSequence.set(false);
+    }
   }
 
   // Função para teste manual dos botões (1 ciclo apenas)
