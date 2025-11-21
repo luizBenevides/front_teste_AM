@@ -102,6 +102,9 @@ export const AppComponent = Component({
     <!-- Connection Status -->
     <div class="mt-4 text-sm text-slate-400">
       Status: <span class="font-mono">{{ getConnectionStatus() }}</span>
+      <span *ngIf="hasReceivedData()" class="ml-4 text-green-400">
+        🟢 Dados recebidos da máquina
+      </span>
     </div>
   </div>
 
@@ -117,6 +120,7 @@ export const AppComponent = Component({
           <h2 class="text-lg font-semibold text-slate-300 border-b border-slate-600 pb-2 mb-4">Routines & Controls</h2>
           <div class="flex flex-wrap gap-3">
             <button (click)="sendHome()" [disabled]="!isConnected()" class="control-btn bg-indigo-600 hover:bg-indigo-500">🏠 Home</button>
+            <button (click)="testCommunication()" [disabled]="!isConnected()" class="control-btn bg-purple-600 hover:bg-purple-500">🔧 Test Comm</button>
             <button (click)="executeFingerdown1()" [disabled]="!isConnected() || isRunningSequence()" class="control-btn bg-teal-600 hover:bg-teal-500">▶️ FingerDown 1</button>
             <button (click)="testG90Commands()" [disabled]="!isConnected() || isRunningSequence()" class="control-btn bg-sky-600 hover:bg-sky-500">🔄 Test G90</button>
             <button (click)="stopSequence()" [disabled]="!isRunningSequence()" class="control-btn bg-orange-600 hover:bg-orange-500">⏸️ Stop Sequence</button>
@@ -201,8 +205,8 @@ export const AppComponent = Component({
   // Multiple port configuration
   selectedPort1 = signal('');
   selectedPort2 = signal('');
-  baudRate1 = signal(9600);
-  baudRate2 = signal(9600);
+  baudRate1 = signal(9600);  // Match Python default
+  baudRate2 = signal(9600);  // Match Python default
   baudRates = [9600, 19200, 38400, 57600, 115200];
   
   // Port management
@@ -311,6 +315,11 @@ export const AppComponent = Component({
     if (connected.length === 1) return `1 porta conectada: ${connected[0]}`;
     return `${connected.length} portas conectadas: ${connected.join(', ')}`;
   }
+
+  hasReceivedData() {
+    // Check if we have any received messages in the log
+    return this.logMessages().some(log => log.type === 'receive');
+  }
   
   // Legacy methods for compatibility
   connect() {
@@ -323,6 +332,34 @@ export const AppComponent = Component({
 
   sendHome() {
     this.serialService.sendCommand('$H');
+  }
+
+  testCommunication() {
+    // Testar vários comandos e protocolos possíveis
+    this.serialService.addLogMessage('🔧 Testando vários protocolos de comunicação...', 'info');
+    
+    const testCommands = [
+      '?',           // Status query (G-code)
+      'M114',        // Get current position (Marlin)
+      'M115',        // Get firmware version (Marlin)  
+      '\r\n',        // Simple newline
+      'STATUS',      // Custom status
+      'VER',         // Version command
+      'HELLO',       // Hello command
+      'AT',          // AT command (serial modems)
+      'INFO',        // Info command
+      '*',           // Wildcard
+    ];
+    
+    testCommands.forEach((cmd, index) => {
+      setTimeout(() => {
+        this.serialService.sendCommand(cmd);
+      }, index * 500); // 500ms between each command
+    });
+    
+    setTimeout(() => {
+      this.serialService.addLogMessage('🔍 Teste de comunicação finalizado. Se nenhuma resposta, a máquina pode usar protocolo proprietário.', 'warn');
+    }, testCommands.length * 500 + 1000);
   }
 
   sendG90Manual() {
