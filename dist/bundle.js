@@ -67393,6 +67393,45 @@ const AppComponent = Component({
           </div>
         </div>
 
+        <!-- Teste Manual dos Botões do Controle -->
+        <div>
+          <h2 class="text-lg font-semibold text-slate-300 border-b border-slate-600 pb-2 mb-4">🎮 Teste dos Botões do Controle</h2>
+          
+          <!-- Teste Manual Individual -->
+          <div class="flex flex-wrap items-center gap-3 bg-slate-900/50 p-3 rounded-md mb-3">
+            <button (click)="executeManualButtonTest()" [disabled]="!isConnected() || isRunningSequence() || isRunningLoop()" class="control-btn bg-blue-600 hover:bg-blue-500">
+              🎯 Teste Manual (1x)
+            </button>
+            <div class="text-xs text-slate-400">
+              Executa 1 ciclo: Move → Pressiona → Solta (posição única)
+            </div>
+          </div>
+
+          <!-- Loop Contínuo -->
+          <div class="flex flex-wrap items-center gap-3 bg-slate-900/50 p-3 rounded-md mb-3">
+            <button (click)="iniciarLoopFingerdown()" [disabled]="!isConnected() || isRunningLoop() || isRunningSequence()" class="control-btn bg-emerald-600 hover:bg-emerald-500">
+              ▶️ Iniciar Loop Contínuo
+            </button>
+            <button (click)="pararLoopFingerdown()" [disabled]="!isRunningLoop()" class="control-btn bg-red-600 hover:bg-red-500">
+              ⏹️ Parar Loop
+            </button>
+            <div *ngIf="isRunningLoop()" class="flex items-center gap-2 text-emerald-400">
+              <span class="relative flex h-3 w-3">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+              </span>
+              <span>Loop Executando - Ciclo {{currentLoopCycle()}}</span>
+            </div>
+          </div>
+          
+          <div class="text-xs text-slate-400 bg-slate-900/30 p-2 rounded">
+            <strong>Sequência Loop Contínuo:</strong><br>
+            • Posição 1: Move X29.441 Y71.726 → Pressiona → Solta<br>
+            • Posição 2: Move X394.805 Y77.726 → Pressiona → Solta<br>
+            • Repete continuamente até parar manualmente
+          </div>
+        </div>
+
         <div>
           <h2 class="text-lg font-semibold text-slate-300 border-b border-slate-600 pb-2 mb-4">Manual Commands</h2>
           <div class="space-y-4">
@@ -67483,6 +67522,11 @@ const AppComponent = Component({
   g90x = signal('');
   g90y = signal('');
   customCommand = signal('');
+
+  // Variáveis para loop contínuo de teste dos botões
+  emExecucaoLoop = signal(false);
+  currentLoopCycle = signal(0);
+  loopCancelRequested = signal(false);
 
   g90Commands = signal([
     "G90 X14.151 Y123.008", "G90 X27.115 Y114.518", "G90 X40.277 Y100.832",
@@ -67695,6 +67739,203 @@ const AppComponent = Component({
     }
     
     this.isRunningSequence.set(false);
+  }
+
+  // Função para teste manual dos botões (1 ciclo apenas)
+  async executeManualButtonTest() {
+    if (this.isRunningSequence() || this.isRunningLoop()) {
+      return;
+    }
+    
+    this.isRunningSequence.set(true);
+    
+    this.logMessages.update(logs => [...logs, { 
+      timestamp: new Date().toLocaleTimeString(), 
+      message: '=== TESTE MANUAL - 1 CICLO ===', 
+      type: 'info' 
+    }]);
+
+    try {
+      // Move para posição
+      if (this.getPort2Id()) {
+        await this.serialService.sendCommand('G90 X29.441 Y71.726', true, this.getPort2Id());
+        await this.delay(1000);
+      }
+
+      // Pressiona
+      if (this.getPort1Id()) {
+        await this.serialService.sendCommand('P_1', false, this.getPort1Id());
+        await this.delay(1000);
+
+        // Libera pressionamento
+        await this.serialService.sendCommand('P_0', false, this.getPort1Id());
+        await this.delay(500);
+      }
+
+      this.logMessages.update(logs => [...logs, { 
+        timestamp: new Date().toLocaleTimeString(), 
+        message: '✅ Teste manual concluído', 
+        type: 'info' 
+      }]);
+
+    } catch (error) {
+      this.logMessages.update(logs => [...logs, { 
+        timestamp: new Date().toLocaleTimeString(), 
+        message: `❌ Erro no teste manual: ${error.message}`, 
+        type: 'error' 
+      }]);
+    } finally {
+      this.isRunningSequence.set(false);
+    }
+  }
+
+  // ========== NOVO SISTEMA DE LOOP CONTÍNUO ==========
+  
+  isRunningLoop() {
+    return this.emExecucaoLoop();
+  }
+
+  async iniciarLoopFingerdown() {
+    if (this.emExecucaoLoop()) return;
+    
+    this.emExecucaoLoop.set(true);
+    this.loopCancelRequested.set(false);
+    this.currentLoopCycle.set(0);
+    
+    this.logMessages.update(logs => [...logs, { 
+      timestamp: new Date().toLocaleTimeString(), 
+      message: '=== INICIANDO LOOP CONTÍNUO FINGERDOWN ===', 
+      type: 'info' 
+    }]);
+
+    try {
+      while (!this.loopCancelRequested()) {
+        this.currentLoopCycle.update(cycle => cycle + 1);
+        await this.executarCicloFingerdown();
+        
+        if (!this.loopCancelRequested()) {
+          await this.delay(500); // Delay entre ciclos
+        }
+      }
+    } catch (error) {
+      this.logMessages.update(logs => [...logs, { 
+        timestamp: new Date().toLocaleTimeString(), 
+        message: `❌ Erro no loop: ${error.message}`, 
+        type: 'error' 
+      }]);
+    } finally {
+      this.emExecucaoLoop.set(false);
+      this.logMessages.update(logs => [...logs, { 
+        timestamp: new Date().toLocaleTimeString(), 
+        message: `=== LOOP CONTÍNUO FINALIZADO (${this.currentLoopCycle()} ciclos) ===`, 
+        type: 'info' 
+      }]);
+    }
+  }
+
+  pararLoopFingerdown() {
+    this.loopCancelRequested.set(true);
+  }
+
+  async executarCicloFingerdown() {
+    try {
+      this.logMessages.update(logs => [...logs, { 
+        timestamp: new Date().toLocaleTimeString(), 
+        message: `🔄 Ciclo ${this.currentLoopCycle()}`, 
+        type: 'info' 
+      }]);
+
+      // POSIÇÃO 1 - Move para primeira posição
+      if (!this.loopCancelRequested() && this.getPort2Id()) {
+        await this.serialService.sendCommand('G90 X29.441 Y71.726', true, this.getPort2Id());
+        await this.aguardarMovimentoConcluido();
+      }
+
+      // POSIÇÃO 1 - Pressiona
+      if (!this.loopCancelRequested() && this.getPort1Id()) {
+        await this.serialService.sendCommand('P_1', false, this.getPort1Id());
+        await this.delay(1000); // Tempo pressionado
+        
+        // POSIÇÃO 1 - Libera pressionamento
+        await this.serialService.sendCommand('P_0', false, this.getPort1Id());
+        await this.delay(500); // Delay após liberar
+      }
+
+      // POSIÇÃO 2 - Move para segunda posição
+      if (!this.loopCancelRequested() && this.getPort2Id()) {
+        await this.serialService.sendCommand('G90 X394.805 Y77.726', true, this.getPort2Id());
+        await this.aguardarMovimentoConcluido();
+      }
+
+      // POSIÇÃO 2 - Pressiona
+      if (!this.loopCancelRequested() && this.getPort1Id()) {
+        await this.serialService.sendCommand('P_1', false, this.getPort1Id());
+        await this.delay(1000); // Tempo pressionado
+        
+        // POSIÇÃO 2 - Libera pressionamento
+        await this.serialService.sendCommand('P_0', false, this.getPort1Id());
+        await this.delay(500); // Delay após liberar
+      }
+
+    } catch (error) {
+      this.logMessages.update(logs => [...logs, { 
+        timestamp: new Date().toLocaleTimeString(), 
+        message: `❌ Erro no ciclo fingerdown: ${error.message}`, 
+        type: 'error' 
+      }]);
+      throw error; // Re-throw para parar o loop
+    }
+  }
+
+  async aguardarMovimentoConcluido() {
+    const timeoutMs = 5000; // Timeout de 5 segundos
+    const startTime = Date.now();
+    
+    // Limpar dados RX antes de aguardar resposta
+    this.logMessages.update(logs => [...logs, { 
+      timestamp: new Date().toLocaleTimeString(), 
+      message: '⏳ Aguardando movimento concluir...', 
+      type: 'info' 
+    }]);
+
+    while (!this.loopCancelRequested() && (Date.now() - startTime < timeoutMs)) {
+      // Verificar nos logs se recebeu "MOV_FIM"
+      const recentLogs = this.logMessages().slice(-10); // Últimos 10 logs
+      const movimentoFim = recentLogs.some(log => 
+        log.type === 'receive' && log.message.includes('MOV_FIM')
+      );
+      
+      if (movimentoFim) {
+        this.logMessages.update(logs => [...logs, { 
+          timestamp: new Date().toLocaleTimeString(), 
+          message: '✅ Movimento concluído (MOV_FIM recebido)', 
+          type: 'info' 
+        }]);
+        return;
+      }
+      
+      await this.delay(100); // Verificar a cada 100ms
+    }
+    
+    if (this.loopCancelRequested()) {
+      throw new Error('Movimento cancelado pelo usuário');
+    } else {
+      this.logMessages.update(logs => [...logs, { 
+        timestamp: new Date().toLocaleTimeString(), 
+        message: '⚠️ Timeout ao aguardar movimento (5s)', 
+        type: 'warn' 
+      }]);
+      // Não lança erro para não parar o loop, apenas continua
+    }
+  }
+
+  // Métodos auxiliares para obter IDs das portas
+  getPort1Id() {
+    return this.portConnections().get('port1') || null;
+  }
+
+  getPort2Id() {
+    return this.portConnections().get('port2') || null;
   }
   
   async testG90Commands() {
