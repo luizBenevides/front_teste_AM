@@ -449,32 +449,12 @@ export const AppComponent = Component({
     this.logMessages.update(logs => [...logs, { timestamp: new Date().toLocaleTimeString(), message: '=== INICIANDO ROTINA FINGERDOWN1 ===', type: 'info' }]);
     
     if (!this.isRunningSequence()) return;
-    await this.serialService.sendCommand('K7_1', false);
-    await this.delay(1000);  // Aumentado de 300 para 1000ms
-    
-    if (!this.isRunningSequence()) return;
-    await this.serialService.sendCommand('K7_1', false);
-    await this.delay(1500);  // Aumentado de 500 para 1500ms
-    
-    if (!this.isRunningSequence()) return;
-    await this.serialService.sendCommand('K2_1', false);
-    await this.delay(2000);  // Aumentado de 1000 para 2000ms
-    
-    if (!this.isRunningSequence()) return;
     await this.serialService.sendCommand('G90 X29.441 Y71.726');
     await this.delay(3000);  // Aumentado de 1200 para 3000ms
     
     if (!this.isRunningSequence()) return;
-    await this.serialService.sendCommand('P_1', false);
+    await this.serialService.sendCommand('P_2', false);
     await this.delay(2500);  // Aumentado de 1000 para 2500ms
-    
-    if (!this.isRunningSequence()) return;
-    await this.serialService.sendCommand('K4_1', false);
-    await this.delay(1500);  // Aumentado de 500 para 1500ms
-    
-    if (!this.isRunningSequence()) return;
-    await this.serialService.sendCommand('P_0', false);
-    await this.delay(3000);  // Aumentado de 1500 para 3000ms
     
     if (this.isRunningSequence()) {
       this.logMessages.update(logs => [...logs, { timestamp: new Date().toLocaleTimeString(), message: '=== ROTINA FINGERDOWN1 CONCLUÍDA ===', type: 'info' }]);
@@ -503,7 +483,7 @@ export const AppComponent = Component({
       // Apenas pressiona e solta, sem movimento
       if (this.getPort1Id()) {
         // Pressiona
-        await this.serialService.sendCommand('P_1', false, this.getPort1Id());
+        await this.serialService.sendCommand('P_2', false, this.getPort2Id());
         this.logMessages.update(logs => [...logs, { 
           timestamp: new Date().toLocaleTimeString(), 
           message: '👆 Pressionando botão...', 
@@ -513,7 +493,7 @@ export const AppComponent = Component({
         await this.delay(1000); // Mantém pressionado por 1 segundo
 
         // Libera
-        await this.serialService.sendCommand('P_0', false, this.getPort1Id());
+        await this.serialService.sendCommand('P_0', false, this.getPort2Id());
         this.logMessages.update(logs => [...logs, { 
           timestamp: new Date().toLocaleTimeString(), 
           message: '✋ Liberando botão...', 
@@ -562,18 +542,18 @@ export const AppComponent = Component({
 
     try {
       // Move para posição
-      if (this.getPort2Id()) {
-        await this.serialService.sendCommand('G90 X29.441 Y71.726', true, this.getPort2Id());
+      if (this.getPort1Id()) {
+        await this.serialService.sendCommand('G90 X29.441 Y71.726', true, this.getPort1Id());
         await this.delay(1000);
       }
 
       // Pressiona
-      if (this.getPort1Id()) {
-        await this.serialService.sendCommand('P_1', false, this.getPort1Id());
+      if (this.getPort2Id()) {
+        await this.serialService.sendCommand('P_1', false, this.getPort2Id());
         await this.delay(1000);
 
         // Libera pressionamento
-        await this.serialService.sendCommand('P_0', false, this.getPort1Id());
+        await this.serialService.sendCommand('P_0', false, this.getPort2Id());
         await this.delay(500);
       }
 
@@ -651,34 +631,34 @@ export const AppComponent = Component({
       }]);
 
       // POSIÇÃO 1 - Move para primeira posição
-      if (!this.loopCancelRequested() && this.getPort2Id()) {
+      if (!this.loopCancelRequested() && this.getPort1Id()) {
         await this.serialService.sendCommand('G90 X29.441 Y71.726', true, this.getPort2Id());
         await this.aguardarMovimentoConcluido();
       }
 
       // POSIÇÃO 1 - Pressiona
-      if (!this.loopCancelRequested() && this.getPort1Id()) {
-        await this.serialService.sendCommand('P_1', false, this.getPort1Id());
+      if (!this.loopCancelRequested() && this.getPort2Id()) {
+        await this.serialService.sendCommand('P_1', false, this.getPort2Id());
         await this.delay(1000); // Tempo pressionado
         
         // POSIÇÃO 1 - Libera pressionamento
-        await this.serialService.sendCommand('P_0', false, this.getPort1Id());
+        await this.serialService.sendCommand('P_0', false, this.getPort2Id());
         await this.delay(500); // Delay após liberar
       }
 
       // POSIÇÃO 2 - Move para segunda posição
-      if (!this.loopCancelRequested() && this.getPort2Id()) {
+      if (!this.loopCancelRequested() && this.getPort1Id()) {
         await this.serialService.sendCommand('G90 X394.805 Y77.726', true, this.getPort2Id());
         await this.aguardarMovimentoConcluido();
       }
 
       // POSIÇÃO 2 - Pressiona
-      if (!this.loopCancelRequested() && this.getPort1Id()) {
-        await this.serialService.sendCommand('P_1', false, this.getPort1Id());
+      if (!this.loopCancelRequested() && this.getPort2Id()) {
+        await this.serialService.sendCommand('P_1', false, this.getPort2Id());
         await this.delay(1000); // Tempo pressionado
         
         // POSIÇÃO 2 - Libera pressionamento
-        await this.serialService.sendCommand('P_0', false, this.getPort1Id());
+        await this.serialService.sendCommand('P_0', false, this.getPort2Id());
         await this.delay(500); // Delay após liberar
       }
 
@@ -744,26 +724,111 @@ export const AppComponent = Component({
   }
   
   async testG90Commands() {
-    if (this.isRunningSequence()) {
-      return;
-    }
+    if (this.isRunningSequence()) return;
+
     this.isRunningSequence.set(true);
-    this.logMessages.update(logs => [...logs, { timestamp: new Date().toLocaleTimeString(), message: '=== TESTANDO COMANDOS G90 ===', type: 'info' }]);
-    
-    for (const command of this.g90Commands()) {
+
+    this.logMessages.update(logs => [
+      ...logs,
+      {
+        timestamp: new Date().toLocaleTimeString(),
+        message: '=== TESTANDO COMANDOS G90 COM PRESSÃO ===',
+        type: 'info'
+      }
+    ]);
+
+    try {
+
+      for (const command of this.g90Commands()) {
+
+        // Interrupção manual
         if (!this.isRunningSequence()) {
-          this.logMessages.update(logs => [...logs, { timestamp: new Date().toLocaleTimeString(), message: 'Teste G90 interrompido pelo usuário.', type: 'warn' }]);
-          this.isRunningSequence.set(false);
-          return;
+          this.logMessages.update(logs => [
+            ...logs,
+            {
+              timestamp: new Date().toLocaleTimeString(),
+              message: 'Teste G90 interrompido pelo usuário.',
+              type: 'warn'
+            }
+          ]);
+          break;
         }
+
+        // ---- MOVIMENTO G90 ----
         await this.serialService.sendCommand(command);
-        await this.delay(1500);  // Aumentado de 500 para 1500ms
+        this.logMessages.update(logs => [
+          ...logs,
+          {
+            timestamp: new Date().toLocaleTimeString(),
+            message: `➡ Movendo para: ${command}`,
+            type: 'info'
+          }
+        ]);
+        await this.delay(1500);
+
+        // ---- PRESSÃO APÓS O MOVIMENTO ----
+        const port2 = this.getPort2Id();
+
+        if (port2) {
+          // Pressiona
+          await this.serialService.sendCommand('P_2', false, port2);
+          this.logMessages.update(logs => [
+            ...logs,
+            {
+              timestamp: new Date().toLocaleTimeString(),
+              message: '👆 Pressionando botão (PORTA 2)...',
+              type: 'info'
+            }
+          ]);
+          await this.delay(1000);
+
+          // Solta
+          await this.serialService.sendCommand('P_0', false, port2);
+          this.logMessages.update(logs => [
+            ...logs,
+            {
+              timestamp: new Date().toLocaleTimeString(),
+              message: '✋ Liberando botão (PORTA 2)...',
+              type: 'info'
+            }
+          ]);
+          await this.delay(500);
+
+        } else {
+          this.logMessages.update(logs => [
+            ...logs,
+            {
+              timestamp: new Date().toLocaleTimeString(),
+              message: '❌ Porta 2 não conectada! Pressão ignorada.',
+              type: 'error'
+            }
+          ]);
+        }
+      }
+
+      if (this.isRunningSequence()) {
+        this.logMessages.update(logs => [
+          ...logs,
+          {
+            timestamp: new Date().toLocaleTimeString(),
+            message: '=== TESTE G90 + PRESSÃO CONCLUÍDO ===',
+            type: 'info'
+          }
+        ]);
+      }
+
+    } catch (err) {
+      this.logMessages.update(logs => [
+        ...logs,
+        {
+          timestamp: new Date().toLocaleTimeString(),
+          message: `❌ Erro no teste G90: ${err.message}`,
+          type: 'error'
+        }
+      ]);
+    } finally {
+      this.isRunningSequence.set(false);
     }
-    
-    if (this.isRunningSequence()) {
-      this.logMessages.update(logs => [...logs, { timestamp: new Date().toLocaleTimeString(), message: '=== COMANDOS G90 TESTADOS ===', type: 'info' }]);
-    }
-    this.isRunningSequence.set(false);
   }
 
   async executeG90Sequence() {
