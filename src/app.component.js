@@ -121,7 +121,7 @@ export const AppComponent = Component({
           <div class="flex flex-wrap gap-3">
             <button (click)="sendHome()" [disabled]="!isConnected()" class="control-btn bg-indigo-600 hover:bg-indigo-500">🏠 Home</button>
             <button (click)="testCommunication()" [disabled]="!isConnected()" class="control-btn bg-purple-600 hover:bg-purple-500">🔧 Test Comm</button>
-            <button (click)="executeFingerdown1()" [disabled]="!isConnected() || isRunningSequence()" class="control-btn bg-teal-600 hover:bg-teal-500">▶️ FingerDown 1</button>
+            <!-- button (click)="executeFingerdown1()" [disabled]="!isConnected() || isRunningSequence()" class="control-btn bg-teal-600 hover:bg-teal-500">▶️ FingerDown 1</button -->
             <button (click)="testG90Commands()" [disabled]="!isConnected() || isRunningSequence()" class="control-btn bg-sky-600 hover:bg-sky-500">🔄 Test G90</button>
             <button (click)="stopSequence()" [disabled]="!isRunningSequence()" class="control-btn bg-orange-600 hover:bg-orange-500">⏸️ Stop Sequence</button>
           </div>
@@ -153,10 +153,10 @@ export const AppComponent = Component({
 
           <!-- Loop Contínuo -->
           <div class="flex flex-wrap items-center gap-3 bg-slate-900/50 p-3 rounded-md mb-3">
-            <button (click)="iniciarLoopFingerdown()" [disabled]="!isConnected() || isRunningLoop() || isRunningSequence()" class="control-btn bg-emerald-600 hover:bg-emerald-500">
+            <button (click)="loopG90Limited()" [disabled]="!isConnected() || isRunningLoop() || isRunningSequence()" class="control-btn bg-emerald-600 hover:bg-emerald-500">
               ▶️ Iniciar Loop Contínuo
             </button>
-            <button (click)="pararLoopFingerdown()" [disabled]="!isRunningLoop()" class="control-btn bg-red-600 hover:bg-red-500">
+            <button (click)="pararLoopG90()" [disabled]="!isRunningLoop()" class="control-btn bg-red-600 hover:bg-red-500">
               ⏹️ Parar Loop
             </button>
             <div *ngIf="isRunningLoop()" class="flex items-center gap-2 text-emerald-400">
@@ -384,8 +384,17 @@ export const AppComponent = Component({
     this.disconnectAll();
   }
 
-  sendHome() {
-    this.serialService.sendCommand('$H');
+  async sendHome() {
+    // Reset do GRBL
+    await this.serialService.sendCommand('\x18', false);
+    await this.delay(300);
+
+    // Unlock
+    await this.serialService.sendCommand('$X');
+    await this.delay(300);
+
+    // Home
+    await this.serialService.sendCommand('$H');
   }
 
   testCommunication() {
@@ -416,17 +425,68 @@ export const AppComponent = Component({
     }, testCommands.length * 500 + 1000);
   }
 
-  sendG90Manual() {
+  async sendG90Manual() {
     const x = this.g90x().trim();
     const y = this.g90y().trim();
     if (!x || !y) {
       alert("Please enter values for X and Y.");
       return;
     }
-    this.serialService.sendCommand(`G90 X${x} Y${y}`);
-    this.g90x.set('');
-    this.g90y.set('');
+
+    const port1 = this.getPort1Id(); // movimento
+    const port2 = this.getPort2Id(); // pressão
+
+    if (!port1) {
+      alert("Porta 1 não conectada!");
+      return;
+    }
+    if (!port2) {
+      alert("Porta 2 não conectada!");
+      return;
+    }
+
+    try {
+      // ===== 1. Mover =====
+      await this.serialService.sendCommand(`G90 X${x} Y${y}`, true, port1);
+      await this.aguardarMovimentoConcluido();
+
+      // ===== 2. Pressionar =====
+      await this.serialService.sendCommand("P_2", false, port2);
+      this.logMessages.update(logs => [...logs, { 
+        timestamp: new Date().toLocaleTimeString(),
+        message: "👆 Pressionando botão...",
+        type: "info"
+      }]);
+      await this.delay(1000);
+
+      // ===== 3. Soltar =====
+      await this.serialService.sendCommand("P_0", false, port2);
+      this.logMessages.update(logs => [...logs, { 
+        timestamp: new Date().toLocaleTimeString(),
+        message: "✋ Liberando botão...",
+        type: "info"
+      }]);
+      await this.delay(500);
+
+      this.logMessages.update(logs => [...logs, { 
+        timestamp: new Date().toLocaleTimeString(),
+        message: "✅ Teste de pressão concluído",
+        type: "success"
+      }]);
+
+      // limpa inputs
+      this.g90x.set('');
+      this.g90y.set('');
+
+    } catch (error) {
+      this.logMessages.update(logs => [...logs, { 
+        timestamp: new Date().toLocaleTimeString(),
+        message: `❌ Erro ao enviar G90 manual: ${error.message}`,
+        type: "error"
+      }]);
+    }
   }
+
   
   sendCustomCommand() {
     const cmd = this.customCommand().trim();
@@ -580,13 +640,165 @@ export const AppComponent = Component({
     return this.emExecucaoLoop();
   }
 
+  async loopG90Limited(cycles = 5) {
+    if (this.isRunningSequence()) return;
+
+    this.isRunningSequence.set(true);
+    this.currentLoopCycle.set(0);
+
+    this.logMessages.update(logs => [
+      ...logs,
+      {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `=== INICIANDO LOOP G90 LIMITADO (${cycles} ciclos) ===`,
+        type: 'info'
+      }
+    ]);
+
+    try {
+      for (let cycle = 1; cycle <= cycles; cycle++) {
+        this.currentLoopCycle.set(cycle);
+
+        for (const command of this.g90Commands()) {
+
+          // Checar interrupção manual
+          if (!this.isRunningSequence()) {
+            this.logMessages.update(logs => [
+              ...logs,
+              {
+                timestamp: new Date().toLocaleTimeString(),
+                message: 'Loop G90 interrompido pelo usuário.',
+                type: 'warn'
+              }
+            ]);
+            return;
+          }
+
+          // ---- MOVIMENTO G90 ----
+          await this.serialService.sendCommand(command);
+          this.logMessages.update(logs => [
+            ...logs,
+            {
+              timestamp: new Date().toLocaleTimeString(),
+              message: `➡ [Ciclo ${cycle}] Movendo para: ${command}`,
+              type: 'info'
+            }
+          ]);
+          await this.delay(1500);
+
+          // ---- PRESSÃO (PORTA 2) ----
+          const port2 = this.getPort2Id();
+          if (port2) {
+            await this.serialService.sendCommand('P_2', false, port2);
+            this.logMessages.update(logs => [
+              ...logs,
+              {
+                timestamp: new Date().toLocaleTimeString(),
+                message: `👆 [Ciclo ${cycle}] Pressionando botão (PORTA 2)...`,
+                type: 'info'
+              }
+            ]);
+            await this.delay(1000);
+
+            await this.serialService.sendCommand('P_0', false, port2);
+            this.logMessages.update(logs => [
+              ...logs,
+              {
+                timestamp: new Date().toLocaleTimeString(),
+                message: `✋ [Ciclo ${cycle}] Liberando botão (PORTA 2)...`,
+                type: 'info'
+              }
+            ]);
+            await this.delay(500);
+          } else {
+            this.logMessages.update(logs => [
+              ...logs,
+              {
+                timestamp: new Date().toLocaleTimeString(),
+                message: '❌ Porta 2 não conectada! Pressão ignorada.',
+                type: 'error'
+              }
+            ]);
+          }
+        }
+      }
+
+      this.logMessages.update(logs => [
+        ...logs,
+        {
+          timestamp: new Date().toLocaleTimeString(),
+          message: `=== LOOP G90 LIMITADO CONCLUÍDO (${cycles} ciclos) ===`,
+          type: 'info'
+        }
+      ]);
+
+    } catch (err) {
+      this.logMessages.update(logs => [
+        ...logs,
+        {
+          timestamp: new Date().toLocaleTimeString(),
+          message: `❌ Erro no loop G90 limitado: ${err.message}`,
+          type: 'error'
+        }
+      ]);
+    } finally {
+      this.isRunningSequence.set(false);
+    }
+  }
+
+  async executarCicloG90() {
+    for (const command of this.g90Commands()) {
+
+      // Interrupção manual
+      if (!this.isRunningLoop()) break;
+
+      // Movimento
+      await this.serialService.sendCommand(command);
+      this.logMessages.update(logs => [
+        ...logs,
+        {
+          timestamp: new Date().toLocaleTimeString(),
+          message: `➡ Movendo para: ${command}`,
+          type: 'info'
+        }
+      ]);
+      await this.delay(1500);
+
+      // Pressão
+      const port2 = this.getPort2Id();
+      if (port2) {
+        await this.serialService.sendCommand('P_2', false, port2);
+        this.logMessages.update(logs => [
+          ...logs,
+          {
+            timestamp: new Date().toLocaleTimeString(),
+            message: '👆 Pressionando botão (PORTA 2)...',
+            type: 'info'
+          }
+        ]);
+        await this.delay(1000);
+
+        await this.serialService.sendCommand('P_0', false, port2);
+        this.logMessages.update(logs => [
+          ...logs,
+          {
+            timestamp: new Date().toLocaleTimeString(),
+            message: '✋ Liberando botão (PORTA 2)...',
+            type: 'info'
+          }
+        ]);
+        await this.delay(500);
+      }
+    }
+  }
+
   async iniciarLoopFingerdown() {
     if (this.emExecucaoLoop()) return;
-    
+
     this.emExecucaoLoop.set(true);
     this.loopCancelRequested.set(false);
     this.currentLoopCycle.set(0);
-    
+
     this.logMessages.update(logs => [...logs, { 
       timestamp: new Date().toLocaleTimeString(), 
       message: '=== INICIANDO LOOP CONTÍNUO FINGERDOWN ===', 
@@ -595,21 +807,52 @@ export const AppComponent = Component({
 
     try {
       while (!this.loopCancelRequested()) {
+
         this.currentLoopCycle.update(cycle => cycle + 1);
-        await this.executarCicloFingerdown();
-        
+
+        // Executa o ciclo e captura a resposta
+        const resposta = await this.executarCicloFingerdown();
+
+        // 🔍 1 — Detecta ALARM vindo do GRBL
+        if (resposta && resposta.includes("ALARM")) {
+
+          this.logMessages.update(logs => [...logs, { 
+            timestamp: new Date().toLocaleTimeString(), 
+            message:
+              `🚨 GRBL entrou em ALARM durante o ciclo ${this.currentLoopCycle()}. Resposta: ${resposta}`,
+            type: 'error' 
+          }]);
+
+          // 🔧 2 — Reset do GRBL
+          await this.serialService.sendCommand('\x18', false); // CTRL-X
+          await this.delay(400);
+
+          // 🔓 3 — Unlock
+          await this.serialService.sendCommand('$X');
+          await this.delay(400);
+
+          // 🔚 4 — Encerrar o loop automaticamente
+          this.loopCancelRequested.set(true);
+
+          break; // encerra o while
+        }
+
+        // Delay entre ciclos
         if (!this.loopCancelRequested()) {
-          await this.delay(500); // Delay entre ciclos
+          await this.delay(500);
         }
       }
+
     } catch (error) {
       this.logMessages.update(logs => [...logs, { 
         timestamp: new Date().toLocaleTimeString(), 
         message: `❌ Erro no loop: ${error.message}`, 
         type: 'error' 
       }]);
+
     } finally {
       this.emExecucaoLoop.set(false);
+
       this.logMessages.update(logs => [...logs, { 
         timestamp: new Date().toLocaleTimeString(), 
         message: `=== LOOP CONTÍNUO FINALIZADO (${this.currentLoopCycle()} ciclos) ===`, 
@@ -617,6 +860,49 @@ export const AppComponent = Component({
       }]);
     }
   }
+
+  async iniciarLoopG90() {
+    if (this.emExecucaoLoop()) return;
+
+    this.emExecucaoLoop.set(true);
+    this.loopCancelRequested.set(false);
+    this.currentLoopCycle.set(0);
+
+    this.logMessages.update(logs => [...logs, { 
+      timestamp: new Date().toLocaleTimeString(), 
+      message: '=== INICIANDO LOOP CONTÍNUO G90 ===', 
+      type: 'info' 
+    }]);
+
+    try {
+      while (!this.loopCancelRequested()) {
+        this.currentLoopCycle.update(cycle => cycle + 1);
+        await this.executarCicloG90(); // chama a função de ciclo G90
+        await this.delay(500); // delay entre ciclos
+      }
+    } catch (error) {
+      this.logMessages.update(logs => [...logs, { 
+        timestamp: new Date().toLocaleTimeString(), 
+        message: `❌ Erro no loop G90: ${error.message}`, 
+        type: 'error' 
+      }]);
+    } finally {
+      this.emExecucaoLoop.set(false);
+      this.logMessages.update(logs => [...logs, { 
+        timestamp: new Date().toLocaleTimeString(), 
+        message: `=== LOOP CONTÍNUO G90 FINALIZADO (${this.currentLoopCycle()} ciclos) ===`, 
+        type: 'info' 
+      }]);
+    }
+  }
+
+
+  // Para interromper o loop
+  pararLoopG90() {
+    this.loopCancelRequested.set(true);
+  }
+
+
 
   pararLoopFingerdown() {
     this.loopCancelRequested.set(true);
@@ -626,51 +912,58 @@ export const AppComponent = Component({
     try {
       this.logMessages.update(logs => [...logs, { 
         timestamp: new Date().toLocaleTimeString(), 
-        message: `🔄 Ciclo ${this.currentLoopCycle()}`, 
-        type: 'info' 
+        message: `🔄 Ciclo ${this.currentLoopCycle()}`,
+        type: 'info'
       }]);
 
-      // POSIÇÃO 1 - Move para primeira posição
-      if (!this.loopCancelRequested() && this.getPort1Id()) {
-        await this.serialService.sendCommand('G90 X29.441 Y71.726', true, this.getPort2Id());
+      let resposta = "";
+
+      const port1 = this.getPort1Id();  // movimento
+      const port2 = this.getPort2Id();  // pressão
+
+      // segurança extra
+      if (!port1) return "ERRO: Porta 1 não conectada!";
+      if (!port2) return "ERRO: Porta 2 não conectada!";
+
+      // percorre as posições do testG90
+      for (const cmd of this.g90Commands()) {
+
+        if (this.loopCancelRequested()) break;
+
+        // ===== MOVIMENTO ===== (PORTA 1)
+        resposta = await this.serialService.sendCommand(cmd, true, port1);
+        if (this._detectaAlarm(resposta)) return resposta;
+
         await this.aguardarMovimentoConcluido();
+
+        if (this.loopCancelRequested()) break;
+
+        // ===== PRESSIONAR ===== (PORTA 2)
+        resposta = await this.serialService.sendCommand("P_2", false, port2);
+        if (this._detectaAlarm(resposta)) return resposta;
+
+        await this.delay(1000);
+
+        // ===== SOLTAR ===== (PORTA 2)
+        resposta = await this.serialService.sendCommand("P_0", false, port2);
+        if (this._detectaAlarm(resposta)) return resposta;
+
+        await this.delay(500);
       }
 
-      // POSIÇÃO 1 - Pressiona
-      if (!this.loopCancelRequested() && this.getPort2Id()) {
-        await this.serialService.sendCommand('P_1', false, this.getPort2Id());
-        await this.delay(1000); // Tempo pressionado
-        
-        // POSIÇÃO 1 - Libera pressionamento
-        await this.serialService.sendCommand('P_0', false, this.getPort2Id());
-        await this.delay(500); // Delay após liberar
-      }
-
-      // POSIÇÃO 2 - Move para segunda posição
-      if (!this.loopCancelRequested() && this.getPort1Id()) {
-        await this.serialService.sendCommand('G90 X394.805 Y77.726', true, this.getPort2Id());
-        await this.aguardarMovimentoConcluido();
-      }
-
-      // POSIÇÃO 2 - Pressiona
-      if (!this.loopCancelRequested() && this.getPort2Id()) {
-        await this.serialService.sendCommand('P_1', false, this.getPort2Id());
-        await this.delay(1000); // Tempo pressionado
-        
-        // POSIÇÃO 2 - Libera pressionamento
-        await this.serialService.sendCommand('P_0', false, this.getPort2Id());
-        await this.delay(500); // Delay após liberar
-      }
+      return resposta;
 
     } catch (error) {
       this.logMessages.update(logs => [...logs, { 
         timestamp: new Date().toLocaleTimeString(), 
-        message: `❌ Erro no ciclo fingerdown: ${error.message}`, 
-        type: 'error' 
+        message: `❌ Erro no ciclo fingerdown: ${error.message}`,
+        type: 'error'
       }]);
-      throw error; // Re-throw para parar o loop
+      throw error;
     }
   }
+
+
 
   async aguardarMovimentoConcluido() {
     const timeoutMs = 5000; // Timeout de 5 segundos
@@ -851,7 +1144,41 @@ export const AppComponent = Component({
         return [...statuses];
       });
 
-      await this.serialService.sendCommand(this.g90Commands()[i]);
+      //await this.serialService.sendCommand(this.g90Commands()[i]);
+      // ---- MOVIMENTO G90 ----
+      const response = await this.serialService.sendCommand(command);
+      // Detecta ALARM vindo do GRBL
+      if (response.includes("ALARM")) {
+
+        this.logMessages.update(logs => [
+          ...logs,
+          {
+            timestamp: new Date().toLocaleTimeString(),
+            message: `🚨 GRBL entrou em ALARM! Resposta: ${response}`,
+            type: 'error'
+          }
+        ]);
+
+        // Reset do GRBL
+        this.serialService.sendRaw("\x18"); // CTRL-X
+        await this.delay(500);
+
+        // Desbloqueio (alguns alarms precisam)
+        await this.serialService.sendCommand("$X");
+        await this.delay(500);
+
+        this.logMessages.update(logs => [
+          ...logs,
+          {
+            timestamp: new Date().toLocaleTimeString(),
+            message: "⚠️ GRBL resetado após ALARM.",
+            type: 'warn'
+          }
+        ]);
+
+        break; // <-- interrompe o teste G90
+      }
+
       
       await this.delay(3000);  // Aumentado de 2000 para 3000ms
 
