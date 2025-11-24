@@ -192,10 +192,10 @@ export const AppComponent = Component({
                   🔧 K7_1 (Avançar Base)
                 </button>
                 <button (click)="sendK4_1()" [disabled]="!isConnected()" class="control-btn bg-green-600 hover:bg-green-500">
-                  🔒 K4_1 (Prender Controle)
+                  🔒 TRAVAR BERÇO K4 1
                 </button>
                 <button (click)="sendK7_0()" [disabled]="!isConnected()" class="control-btn bg-orange-600 hover:bg-orange-500">
-                  ⬇️ K7_0 (Ajustar Baixo)
+                  ⬇️ DESTRAVAR BERÇO 1 K4_0
                 </button>
               </div>
             </div>
@@ -626,13 +626,13 @@ export const AppComponent = Component({
       type: "info"
     }]);
     
-    await this.serialService.sendCommand('K4_1', false, port2);
+    await this.serialService.sendCommand('K2_1', false, port2);
   }
 
   async sendK4_1() {
     const port2 = this.getPort2Id();
     if (!port2) {
-      alert("Porta 2 não conectada!");
+      alert("Porta 2 não conectada!"); 
       return;
     }
     
@@ -659,7 +659,7 @@ export const AppComponent = Component({
       type: "info"
     }]);
     
-    await this.serialService.sendCommand('K4_1', false, port2);
+    await this.serialService.sendCommand('K4_0', false, port2);
   }
   
   sendSingleG90(command) {
