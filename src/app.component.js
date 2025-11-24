@@ -223,6 +223,26 @@ export const AppComponent = Component({
               <button (click)="sendG90Manual()" [disabled]="!isConnected()" class="action-btn">Send G90</button>
             </div>
             <div class="flex flex-wrap items-center gap-3 bg-slate-900/50 p-3 rounded-md">
+              <span class="font-mono text-slate-400">G90 + HOME</span>
+              <label for="g90xHome" class="text-slate-400">X:</label>
+              <input id="g90xHome" type="text" [(ngModel)]="g90xHome" class="form-input w-24" placeholder="14.151">
+              <label for="g90yHome" class="text-slate-400">Y:</label>
+              <input id="g90yHome" type="text" [(ngModel)]="g90yHome" class="form-input w-24" placeholder="123.008">
+              <label for="g90RepeatsHome" class="text-slate-400">Repetir:</label>
+              <input id="g90RepeatsHome" type="number" [(ngModel)]="g90RepeatsHome" min="1" max="99" class="form-input w-16" placeholder="1">
+              <button (click)="sendG90WithHome()" [disabled]="!isConnected()" class="action-btn">Send G90 + HOME</button>
+            </div>
+            <div class="flex flex-wrap items-center gap-3 bg-slate-900/50 p-3 rounded-md">
+              <span class="font-mono text-slate-400">G90 + HOME</span>
+              <label for="g90xHome" class="text-slate-400">X:</label>
+              <input id="g90xHome" type="text" [(ngModel)]="g90xHome" class="form-input w-24" placeholder="14.151">
+              <label for="g90yHome" class="text-slate-400">Y:</label>
+              <input id="g90yHome" type="text" [(ngModel)]="g90yHome" class="form-input w-24" placeholder="123.008">
+              <label for="g90RepeatsHome" class="text-slate-400">Repetir:</label>
+              <input id="g90RepeatsHome" type="number" [(ngModel)]="g90RepeatsHome" min="1" max="99" class="form-input w-16" placeholder="1">
+              <button (click)="sendG90WithHome()" [disabled]="!isConnected()" class="action-btn">Send G90 + HOME</button>
+            </div>
+            <div class="flex flex-wrap items-center gap-3 bg-slate-900/50 p-3 rounded-md">
               <label for="custom" class="text-slate-400">Command:</label>
               <input id="custom" type="text" [(ngModel)]="customCommand" (keyup.enter)="sendCustomCommand()" class="form-input flex-grow" placeholder="Enter any command...">
               <button (click)="sendCustomCommand()" [disabled]="!isConnected()" class="action-btn">Send Command</button>
@@ -301,6 +321,12 @@ export const AppComponent = Component({
   g90x = signal('');
   g90y = signal('');
   g90Repeats = signal(1); // Nova variável para repetições
+  
+  // Variáveis para G90 com retorno ao home
+  g90xHome = signal('');
+  g90yHome = signal('');
+  g90RepeatsHome = signal(1);
+  
   customCommand = signal('');
 
   // Variáveis para loop contínuo de teste dos botões
@@ -571,6 +597,123 @@ export const AppComponent = Component({
       this.logMessages.update(logs => [...logs, { 
         timestamp: new Date().toLocaleTimeString(),
         message: `❌ Erro no G90 manual: ${error.message}`,
+        type: "error"
+      }]);
+    } finally {
+      this.isRunningSequence.set(false);
+    }
+  }
+
+  async sendG90WithHome() {
+    const x = this.g90xHome().trim();
+    const y = this.g90yHome().trim();
+    const repeats = this.g90RepeatsHome() || 1;
+    
+    if (!x || !y) {
+      alert("Please enter values for X and Y.");
+      return;
+    }
+
+    const port1 = this.getPort1Id(); // movimento
+    const port2 = this.getPort2Id(); // pressão
+
+    if (!port1) {
+      alert("Porta 1 não conectada!");
+      return;
+    }
+    if (!port2) {
+      alert("Porta 2 não conectada!");
+      return;
+    }
+
+    // Evitar execução se já estiver executando
+    if (this.isRunningSequence() || this.isRunningLoop()) {
+      alert("Aguarde a operação atual terminar!");
+      return;
+    }
+
+    this.isRunningSequence.set(true);
+
+    try {
+      this.logMessages.update(logs => [...logs, { 
+        timestamp: new Date().toLocaleTimeString(),
+        message: `=== INICIANDO G90 + HOME X${x} Y${y} (${repeats}x repetições) ===`,
+        type: "info"
+      }]);
+
+      for (let i = 1; i <= repeats; i++) {
+        if (!this.isRunningSequence()) {
+          this.logMessages.update(logs => [...logs, { 
+            timestamp: new Date().toLocaleTimeString(),
+            message: `G90 + HOME interrompido na repetição ${i}/${repeats}`,
+            type: "warn"
+          }]);
+          break;
+        }
+
+        this.logMessages.update(logs => [...logs, { 
+          timestamp: new Date().toLocaleTimeString(),
+          message: `🔄 Repetição ${i}/${repeats}`,
+          type: "info"
+        }]);
+
+        // ===== 1. Mover para posição desejada =====
+        await this.serialService.sendCommand(`G90 X${x} Y${y}`, true, port1);
+        this.logMessages.update(logs => [...logs, { 
+          timestamp: new Date().toLocaleTimeString(),
+          message: `➡ [${i}/${repeats}] Movendo para X${x} Y${y}...`,
+          type: "info"
+        }]);
+        await this.aguardarMovimentoConcluido();
+
+        // ===== 2. Pressionar =====
+        await this.serialService.sendCommand("P_2", false, port2);
+        this.logMessages.update(logs => [...logs, { 
+          timestamp: new Date().toLocaleTimeString(),
+          message: `👆 [${i}/${repeats}] Pressionando botão...`,
+          type: "info"
+        }]);
+        await this.delay(1000);
+
+        // ===== 3. Soltar =====
+        await this.serialService.sendCommand("P_0", false, port2);
+        this.logMessages.update(logs => [...logs, { 
+          timestamp: new Date().toLocaleTimeString(),
+          message: `✋ [${i}/${repeats}] Liberando botão...`,
+          type: "info"
+        }]);
+        await this.delay(500);
+
+        // ===== 4. Voltar para X0 Y0 (SEM CLICAR) =====
+        if (i < repeats) { // Só volta se não for a última repetição
+          await this.serialService.sendCommand("G90 X0 Y0", true, port1);
+          this.logMessages.update(logs => [...logs, { 
+            timestamp: new Date().toLocaleTimeString(),
+            message: `🏠 [${i}/${repeats}] Voltando para X0 Y0...`,
+            type: "info"
+          }]);
+          await this.aguardarMovimentoConcluido();
+          await this.delay(1000); // Delay antes da próxima repetição
+        }
+      }
+
+      if (this.isRunningSequence()) {
+        this.logMessages.update(logs => [...logs, { 
+          timestamp: new Date().toLocaleTimeString(),
+          message: `=== G90 + HOME CONCLUÍDO (${repeats}x repetições) ===`,
+          type: "success"
+        }]);
+      }
+
+      // limpa inputs
+      this.g90xHome.set('');
+      this.g90yHome.set('');
+      this.g90RepeatsHome.set(1);
+
+    } catch (error) {
+      this.logMessages.update(logs => [...logs, { 
+        timestamp: new Date().toLocaleTimeString(),
+        message: `❌ Erro no G90 + HOME: ${error.message}`,
         type: "error"
       }]);
     } finally {
