@@ -67476,6 +67476,28 @@ const AppComponent = Component({
                   📥 K6_0 DESATIVAR PILHA 2
                 </button>
               </div>
+              
+              <!-- Segunda linha de botões - BERÇO 2 e controles adicionais -->
+              <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-3">
+                <button (click)="sendK1_1()" [disabled]="!isConnected()" class="control-btn bg-teal-600 hover:bg-teal-500">
+                  🏗️ K1_1 ATIVA BERÇO 2 MOVE
+                </button>
+                <button (click)="sendK1_0()" [disabled]="!isConnected()" class="control-btn bg-slate-600 hover:bg-slate-500">
+                  ↩️ K1_0 RETORNA BERÇO 2
+                </button>
+                <button (click)="sendK3_1()" [disabled]="!isConnected()" class="control-btn bg-emerald-600 hover:bg-emerald-500">
+                  🔐 K3_1 ATIVA TRAVA BERÇO 2
+                </button>
+                <button (click)="sendK3_0()" [disabled]="!isConnected()" class="control-btn bg-lime-600 hover:bg-lime-500">
+                  🔓 K3_0 DESATIVA TRAVA BERÇO 2
+                </button>
+                <button (click)="sendK6_0_Pilha2()" [disabled]="!isConnected()" class="control-btn bg-violet-600 hover:bg-violet-500">
+                  ⚡ K6_0 ATIVA PILHA 2
+                </button>
+                <button (click)="sendRST()" [disabled]="!isConnected()" class="control-btn bg-red-700 hover:bg-red-600">
+                  🔄 RST RESET GERAL
+                </button>
+              </div>
             </div>
             
             <div class="flex flex-wrap items-center gap-3 bg-slate-900/50 p-3 rounded-md">
@@ -68361,6 +68383,110 @@ const AppComponent = Component({
     }]);
     
     await this.serialService.sendCommand('K7_1', false, port2);
+  }
+  
+  // ========== NOVOS COMANDOS BERÇO 2 E CONTROLES ADICIONAIS ==========
+  
+  // K1_1 - ATIVA BERÇO 2 MOVE
+  async sendK1_1() {
+    const port2 = this.getPort2Id();
+    if (!port2) {
+      alert("Porta 2 não conectada!");
+      return;
+    }
+    
+    this.logMessages.update(logs => [...logs, { 
+      timestamp: new Date().toLocaleTimeString(),
+      message: "🏗️ Enviando K1_1 (ATIVA BERÇO 2 MOVE)...",
+      type: "info"
+    }]);
+    
+    await this.serialService.sendCommand('K1_1', false, port2);
+  }
+  
+  // K1_0 - RETORNA BERÇO 2
+  async sendK1_0() {
+    const port2 = this.getPort2Id();
+    if (!port2) {
+      alert("Porta 2 não conectada!");
+      return;
+    }
+    
+    this.logMessages.update(logs => [...logs, { 
+      timestamp: new Date().toLocaleTimeString(),
+      message: "↩️ Enviando K1_0 (RETORNA BERÇO 2)...",
+      type: "info"
+    }]);
+    
+    await this.serialService.sendCommand('K1_0', false, port2);
+  }
+  
+  // K3_1 - ATIVA TRAVA BERÇO 2
+  async sendK3_1() {
+    const port2 = this.getPort2Id();
+    if (!port2) {
+      alert("Porta 2 não conectada!");
+      return;
+    }
+    
+    this.logMessages.update(logs => [...logs, { 
+      timestamp: new Date().toLocaleTimeString(),
+      message: "🔐 Enviando K3_1 (ATIVA TRAVA BERÇO 2)...",
+      type: "info"
+    }]);
+    
+    await this.serialService.sendCommand('K3_1', false, port2);
+  }
+  
+  // K3_0 - DESATIVA TRAVA BERÇO 2
+  async sendK3_0() {
+    const port2 = this.getPort2Id();
+    if (!port2) {
+      alert("Porta 2 não conectada!");
+      return;
+    }
+    
+    this.logMessages.update(logs => [...logs, { 
+      timestamp: new Date().toLocaleTimeString(),
+      message: "🔓 Enviando K3_0 (DESATIVA TRAVA BERÇO 2)...",
+      type: "info"
+    }]);
+    
+    await this.serialService.sendCommand('K3_0', false, port2);
+  }
+  
+  // K6_0 - ATIVA PILHA 2 (função específica diferente da existente)
+  async sendK6_0_Pilha2() {
+    const port2 = this.getPort2Id();
+    if (!port2) {
+      alert("Porta 2 não conectada!");
+      return;
+    }
+    
+    this.logMessages.update(logs => [...logs, { 
+      timestamp: new Date().toLocaleTimeString(),
+      message: "⚡ Enviando K6_0 (ATIVA PILHA 2)...",
+      type: "info"
+    }]);
+    
+    await this.serialService.sendCommand('K6_1', false, port2);
+  }
+  
+  // RST - RESET GERAL DO SISTEMA
+  async sendRST() {
+    const port2 = this.getPort2Id();
+    if (!port2) {
+      alert("Porta 2 não conectada!");
+      return;
+    }
+    
+    this.logMessages.update(logs => [...logs, { 
+      timestamp: new Date().toLocaleTimeString(),
+      message: "🔄 Enviando RST (RESET GERAL DO SISTEMA)...",
+      type: "warn"
+    }]);
+    
+    await this.serialService.sendCommand('RST', false, port2);
   }
   
   sendSingleG90(command) {
