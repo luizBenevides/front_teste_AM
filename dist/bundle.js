@@ -67453,9 +67453,9 @@ const AppComponent = Component({
             <!-- Seção K7_1 e K4_1 com mais espaçamento -->
             <div class="bg-slate-900/50 p-4 rounded-md mb-6">
               <h3 class="text-md font-medium text-slate-300 mb-3">🔧 Controles Manuais</h3>
-              <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
                 <button (click)="sendK7_1()" [disabled]="!isConnected()" class="control-btn bg-blue-600 hover:bg-blue-500">
-                  🔧 K7_1 (Avançar Base)
+                  🔧 K2_1 (Avançar Base)
                 </button>
                 <button (click)="sendK4_1()" [disabled]="!isConnected()" class="control-btn bg-green-600 hover:bg-green-500">
                   🔒 TRAVAR BERÇO K4_1
@@ -67465,6 +67465,9 @@ const AppComponent = Component({
                 </button>
                 <button (click)="sendK2_0()" [disabled]="!isConnected()" class="control-btn bg-cyan-600 hover:bg-cyan-500">
                   ⬅️ K2_0 VOLTAR BERÇO
+                </button>
+                <button (click)="sendK7_1_Pilhas()" [disabled]="!isConnected()" class="control-btn bg-yellow-600 hover:bg-yellow-500">
+                  ⚡ K7_1 ACIONAR PILHAS
                 </button>
                 <button (click)="sendK7_0()" [disabled]="!isConnected()" class="control-btn bg-red-600 hover:bg-red-500">
                   ⬇️ K7_0 DESATIVAR PILHA 1
@@ -67986,6 +67989,23 @@ const AppComponent = Component({
     }]);
     
     await this.serialService.sendCommand('K2_0', false, port2);
+  }
+
+  // Comando para acionar as pilhas
+  async sendK7_1_Pilhas() {
+    const port2 = this.getPort2Id();
+    if (!port2) {
+      alert("Porta 2 não conectada!");
+      return;
+    }
+    
+    this.logMessages.update(logs => [...logs, { 
+      timestamp: new Date().toLocaleTimeString(),
+      message: "⚡ Enviando K7_1 (ACIONAR PILHAS)...",
+      type: "info"
+    }]);
+    
+    await this.serialService.sendCommand('K7_1', false, port2);
   }
   
   sendSingleG90(command) {
