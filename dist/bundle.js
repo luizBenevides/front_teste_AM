@@ -67513,6 +67513,42 @@ const AppComponent = Component({
               <input id="custom" type="text" [(ngModel)]="customCommand" (keyup.enter)="sendCustomCommand()" class="form-input flex-grow" placeholder="Enter any command...">
               <button (click)="sendCustomCommand()" [disabled]="!isConnected()" class="action-btn">Send Command</button>
             </div>
+            
+            <!-- Seção para Posições G90 Customizadas -->
+            <div class="bg-slate-900/50 p-4 rounded-md">
+              <h3 class="text-md font-medium text-slate-300 mb-3">🎯 Posições G90 Customizadas</h3>
+              
+              <!-- Adicionar nova posição -->
+              <div class="flex flex-wrap items-center gap-3 mb-3">
+                <label for="newG90X" class="text-slate-400">X:</label>
+                <input id="newG90X" type="text" [(ngModel)]="newG90X" class="form-input w-24" placeholder="41">
+                <label for="newG90Y" class="text-slate-400">Y:</label>
+                <input id="newG90Y" type="text" [(ngModel)]="newG90Y" class="form-input w-24" placeholder="135">
+                <button (click)="addG90Position()" [disabled]="!newG90X() || !newG90Y()" class="action-btn bg-green-600 hover:bg-green-500">➕ Adicionar Posição</button>
+                <button (click)="clearG90Positions()" [disabled]="customG90Positions().length === 0" class="action-btn bg-red-600 hover:bg-red-500">🗑️ Limpar Todas</button>
+              </div>
+              
+              <!-- Lista de posições adicionadas -->
+              <div *ngIf="customG90Positions().length > 0" class="mb-3">
+                <div class="text-xs text-slate-400 mb-2">Posições adicionadas ({{customG90Positions().length}}):</div>
+                <div class="flex flex-wrap gap-2">
+                  <span *ngFor="let pos of customG90Positions(); let i = index" 
+                        class="bg-slate-700 px-2 py-1 rounded text-xs text-slate-300">
+                    {{i+1}}: X{{pos.x}} Y{{pos.y}}
+                    <button (click)="removeG90Position(i)" class="ml-2 text-red-400 hover:text-red-300">✖</button>
+                  </span>
+                </div>
+              </div>
+              
+              <!-- Executar loop customizado -->
+              <div class="flex flex-wrap items-center gap-3">
+                <span class="font-mono text-slate-400">LOOP CUSTOMIZADO</span>
+                <label for="customLoopRepeats" class="text-slate-400">Repetir:</label>
+                <input id="customLoopRepeats" type="number" [(ngModel)]="customLoopRepeats" min="1" max="99" class="form-input w-16" placeholder="1">
+                <button (click)="executeCustomG90Loop()" [disabled]="!isConnected() || customG90Positions().length === 0" class="action-btn bg-purple-600 hover:bg-purple-500">🔄 Executar Loop</button>
+                <div class="text-xs text-slate-400">{{customG90Positions().length}} posições → HOME</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -67592,6 +67628,12 @@ const AppComponent = Component({
   g90xHome = signal('');
   g90yHome = signal('');
   g90RepeatsHome = signal(1);
+  
+  // Variáveis para posições G90 customizadas
+  customG90Positions = signal([]);
+  newG90X = signal('');
+  newG90Y = signal('');
+  customLoopRepeats = signal(1);
   
   customCommand = signal('');
 
@@ -68031,6 +68073,176 @@ const AppComponent = Component({
     }
     this.serialService.sendCommand(cmd);
     this.customCommand.set('');
+  }
+
+  // ========== GERENCIAMENTO DE POSIÇÕES G90 CUSTOMIZADAS ==========
+  
+  addG90Position() {
+    const x = this.newG90X().trim();
+    const y = this.newG90Y().trim();
+    
+    if (!x || !y) {
+      alert("Por favor, insira valores para X e Y.");
+      return;
+    }
+
+    const newPosition = { x: parseFloat(x), y: parseFloat(y) };
+    this.customG90Positions.update(positions => [...positions, newPosition]);
+    
+    // Limpa os campos
+    this.newG90X.set('');
+    this.newG90Y.set('');
+    
+    this.logMessages.update(logs => [...logs, {
+      timestamp: new Date().toLocaleTimeString(),
+      message: `➕ Posição adicionada: X${x} Y${y} (Total: ${this.customG90Positions().length})`,
+      type: "info"
+    }]);
+  }
+
+  removeG90Position(index) {
+    const removedPos = this.customG90Positions()[index];
+    this.customG90Positions.update(positions => 
+      positions.filter((_, i) => i !== index)
+    );
+    
+    this.logMessages.update(logs => [...logs, {
+      timestamp: new Date().toLocaleTimeString(),
+      message: `🗑️ Posição removida: X${removedPos.x} Y${removedPos.y}`,
+      type: "info"
+    }]);
+  }
+
+  clearG90Positions() {
+    const count = this.customG90Positions().length;
+    this.customG90Positions.set([]);
+    
+    this.logMessages.update(logs => [...logs, {
+      timestamp: new Date().toLocaleTimeString(),
+      message: `🧹 Todas as ${count} posições foram removidas`,
+      type: "info"
+    }]);
+  }
+
+  async executeCustomG90Loop() {
+    const positions = this.customG90Positions();
+    const repeats = this.customLoopRepeats() || 1;
+    
+    if (positions.length === 0) {
+      alert("Adicione pelo menos uma posição G90 antes de executar o loop.");
+      return;
+    }
+
+    const port1 = this.getPort1Id(); // movimento
+    const port2 = this.getPort2Id(); // pressão
+
+    if (!port1) {
+      alert("Porta 1 não conectada!");
+      return;
+    }
+    if (!port2) {
+      alert("Porta 2 não conectada!");
+      return;
+    }
+
+    // Evitar execução se já estiver executando
+    if (this.isRunningSequence() || this.isRunningLoop()) {
+      alert("Aguarde a operação atual terminar!");
+      return;
+    }
+
+    this.isRunningSequence.set(true);
+
+    try {
+      this.logMessages.update(logs => [...logs, { 
+        timestamp: new Date().toLocaleTimeString(),
+        message: `=== INICIANDO LOOP G90 CUSTOMIZADO (${positions.length} posições, ${repeats}x repetições) ===`,
+        type: "info"
+      }]);
+
+      for (let cycle = 1; cycle <= repeats; cycle++) {
+        if (!this.isRunningSequence()) {
+          this.logMessages.update(logs => [...logs, { 
+            timestamp: new Date().toLocaleTimeString(),
+            message: `Loop customizado interrompido no ciclo ${cycle}/${repeats}`,
+            type: "warn"
+          }]);
+          break;
+        }
+
+        this.logMessages.update(logs => [...logs, { 
+          timestamp: new Date().toLocaleTimeString(),
+          message: `🔄 Ciclo ${cycle}/${repeats} - Executando ${positions.length} posições`,
+          type: "info"
+        }]);
+
+        // Percorre todas as posições customizadas
+        for (let i = 0; i < positions.length; i++) {
+          if (!this.isRunningSequence()) break;
+
+          const pos = positions[i];
+
+          // ===== 1. Mover para posição =====
+          await this.serialService.sendCommand(`G90 X${pos.x} Y${pos.y}`, true, port1);
+          this.logMessages.update(logs => [...logs, { 
+            timestamp: new Date().toLocaleTimeString(),
+            message: `➡ [${cycle}/${repeats}] P${i+1}: Movendo para X${pos.x} Y${pos.y}...`,
+            type: "info"
+          }]);
+          await this.aguardarMovimentoConcluido();
+
+          // ===== 2. Pressionar =====
+          await this.serialService.sendCommand("P_2", false, port2);
+          this.logMessages.update(logs => [...logs, { 
+            timestamp: new Date().toLocaleTimeString(),
+            message: `👆 [${cycle}/${repeats}] P${i+1}: Pressionando botão...`,
+            type: "info"
+          }]);
+          await this.delay(1000);
+
+          // ===== 3. Soltar =====
+          await this.serialService.sendCommand("P_0", false, port2);
+          this.logMessages.update(logs => [...logs, { 
+            timestamp: new Date().toLocaleTimeString(),
+            message: `✋ [${cycle}/${repeats}] P${i+1}: Liberando botão...`,
+            type: "info"
+          }]);
+          await this.delay(500);
+        }
+
+        // ===== 4. Voltar para HOME após completar todas as posições =====
+        if (cycle < repeats) { // Só volta para HOME se não for o último ciclo
+          await this.serialService.sendCommand("G90 X0 Y0", true, port1);
+          this.logMessages.update(logs => [...logs, { 
+            timestamp: new Date().toLocaleTimeString(),
+            message: `🏠 [${cycle}/${repeats}] Voltando para HOME (X0 Y0)...`,
+            type: "info"
+          }]);
+          await this.aguardarMovimentoConcluido();
+          await this.delay(1000); // Delay antes do próximo ciclo
+        }
+      }
+
+      if (this.isRunningSequence()) {
+        this.logMessages.update(logs => [...logs, { 
+          timestamp: new Date().toLocaleTimeString(),
+          message: `=== LOOP G90 CUSTOMIZADO CONCLUÍDO (${positions.length} posições, ${repeats}x repetições) ===`,
+          type: "success"
+        }]);
+      }
+
+      // limpa input
+      this.customLoopRepeats.set(1);
+
+    } catch (error) {
+      this.logMessages.update(logs => [...logs, { 
+        timestamp: new Date().toLocaleTimeString(),
+        message: `❌ Erro no Loop G90 Customizado: ${error.message}`,
+        type: "error"
+      }]);
+    } finally {
+      this.isRunningSequence.set(false);
+    }
   }
 
   // Métodos para comandos K7_1 e K4_1
