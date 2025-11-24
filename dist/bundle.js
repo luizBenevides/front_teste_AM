@@ -67453,15 +67453,21 @@ const AppComponent = Component({
             <!-- Seção K7_1 e K4_1 com mais espaçamento -->
             <div class="bg-slate-900/50 p-4 rounded-md mb-6">
               <h3 class="text-md font-medium text-slate-300 mb-3">🔧 Controles Manuais</h3>
-              <div class="flex flex-wrap items-center gap-4">
+              <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 <button (click)="sendK7_1()" [disabled]="!isConnected()" class="control-btn bg-blue-600 hover:bg-blue-500">
                   🔧 K7_1 (Avançar Base)
                 </button>
                 <button (click)="sendK4_1()" [disabled]="!isConnected()" class="control-btn bg-green-600 hover:bg-green-500">
-                  🔒 TRAVAR BERÇO K4 1
+                  🔒 TRAVAR BERÇO K4_1
                 </button>
-                <button (click)="sendK7_0()" [disabled]="!isConnected()" class="control-btn bg-orange-600 hover:bg-orange-500">
-                  ⬇️ DESTRAVAR BERÇO 1 K4_0
+                <button (click)="sendK4_0()" [disabled]="!isConnected()" class="control-btn bg-orange-600 hover:bg-orange-500">
+                  🔓 K4_0 DESTRAVAR BERÇO
+                </button>
+                <button (click)="sendK7_0()" [disabled]="!isConnected()" class="control-btn bg-red-600 hover:bg-red-500">
+                  ⬇️ K7_0 DESATIVAR PILHA 1
+                </button>
+                <button (click)="sendK6_0()" [disabled]="!isConnected()" class="control-btn bg-purple-600 hover:bg-purple-500">
+                  📥 K6_0 DESATIVAR PILHA 2
                 </button>
               </div>
             </div>
@@ -67911,7 +67917,7 @@ const AppComponent = Component({
     await this.serialService.sendCommand('K4_1', false, port2);
   }
 
-  // Novo comando para ajustar posição para baixo
+  // Comando para desativar pilha 1
   async sendK7_0() {
     const port2 = this.getPort2Id();
     if (!port2) {
@@ -67921,7 +67927,41 @@ const AppComponent = Component({
     
     this.logMessages.update(logs => [...logs, { 
       timestamp: new Date().toLocaleTimeString(),
-      message: "⬇️ Enviando K7_0 (Ajustar Posição Baixo)...",
+      message: "⬇️ Enviando K7_0 (DESATIVAR PILHA 1)...",
+      type: "info"
+    }]);
+    
+    await this.serialService.sendCommand('K7_0', false, port2);
+  }
+
+  // Comando para desativar pilha 2 (recolhe)
+  async sendK6_0() {
+    const port2 = this.getPort2Id();
+    if (!port2) {
+      alert("Porta 2 não conectada!");
+      return;
+    }
+    
+    this.logMessages.update(logs => [...logs, { 
+      timestamp: new Date().toLocaleTimeString(),
+      message: "📥 Enviando K6_0 (DESATIVAR PILHA 2 - RECOLHE)...",
+      type: "info"
+    }]);
+    
+    await this.serialService.sendCommand('K6_0', false, port2);
+  }
+
+  // Método para K4_0 (que já estava funcionando)
+  async sendK4_0() {
+    const port2 = this.getPort2Id();
+    if (!port2) {
+      alert("Porta 2 não conectada!");
+      return;
+    }
+    
+    this.logMessages.update(logs => [...logs, { 
+      timestamp: new Date().toLocaleTimeString(),
+      message: "🔓 Enviando K4_0 (DESTRAVAR BERÇO)...",
       type: "info"
     }]);
     
