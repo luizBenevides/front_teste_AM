@@ -756,7 +756,7 @@ export const AppComponent = Component({
             message: `🏠 [${i}/${repeats}] Voltando para X0 Y0...`,
             type: "info"
           }]);
-          await this.aguardarMovimentoConcluido();
+          await this.aguardarMovimentoConcluido(0, 0);
           await this.delay(1000); // Delay antes da próxima repetição
         }
       }
@@ -945,7 +945,7 @@ export const AppComponent = Component({
             message: `➡ [${cycle}/${repeats}] P${i+1}: Movendo para X${pos.x} Y${pos.y}...`,
             type: "info"
           }]);
-          await this.aguardarMovimentoConcluido();
+          await this.aguardarMovimentoConcluido(pos.x, pos.y);
 
           // ===== 2. Pressionar =====
           await this.serialService.sendCommand("P_2", false, port2);
@@ -974,7 +974,7 @@ export const AppComponent = Component({
             message: `🏠 [${cycle}/${repeats}] Voltando para HOME (X0 Y0)...`,
             type: "info"
           }]);
-          await this.aguardarMovimentoConcluido();
+          await this.aguardarMovimentoConcluido(0, 0);
           await this.delay(1000); // Delay antes do próximo ciclo
         }
       }
@@ -1632,8 +1632,14 @@ export const AppComponent = Component({
             type: 'info'
           }]);
           
+          // Extrair coordenadas X e Y do comando para o timeout dinâmico
+          const xMatch = command.match(/X(-?\d+(?:\.\d+)?)/);
+          const yMatch = command.match(/Y(-?\d+(?:\.\d+)?)/);
+          const x = xMatch ? parseFloat(xMatch[1]) : 0;
+          const y = yMatch ? parseFloat(yMatch[1]) : 0;
+          
           // Aguardar MOV_FIM antes de pressionar
-          await this.aguardarMovimentoConcluido();
+          await this.aguardarMovimentoConcluido(x, y);
           
           // Verificar se houve ALARM nos logs recentes
           const recentLogs = this.logMessages().slice(-3);
@@ -1763,7 +1769,13 @@ export const AppComponent = Component({
         resposta = await this.serialService.sendCommand(cmd, true, port1);
         if (this._detectaAlarm(resposta)) return resposta;
 
-        await this.aguardarMovimentoConcluido();
+        // Extrair coordenadas do comando para timeout dinâmico
+        const xMatch = cmd.match(/X(-?\d+(?:\.\d+)?)/);
+        const yMatch = cmd.match(/Y(-?\d+(?:\.\d+)?)/);
+        const x = xMatch ? parseFloat(xMatch[1]) : 0;
+        const y = yMatch ? parseFloat(yMatch[1]) : 0;
+
+        await this.aguardarMovimentoConcluido(x, y);
 
         if (this.loopCancelRequested()) break;
 
@@ -1794,13 +1806,24 @@ export const AppComponent = Component({
 
 
 
-  async aguardarMovimentoConcluido() {
-    const timeoutMs = 2000; // Aumentado para 10 segundos
+  async aguardarMovimentoConcluido(x = 0, y = 0) {
+    // Calcular timeout baseado na distância
+    const distance = Math.sqrt(x*x + y*y);
+    let timeoutMs = 5000; // Base de 5 segundos
+    
+    if (distance > 300) {
+      timeoutMs = 20000; // 20 segundos para distâncias longas
+    } else if (distance > 150) {
+      timeoutMs = 15000; // 15 segundos para distâncias médias  
+    } else if (distance > 50) {
+      timeoutMs = 10000; // 10 segundos para distâncias curtas
+    }
+    
     const startTime = Date.now();
     
     this.logMessages.update(logs => [...logs, { 
       timestamp: new Date().toLocaleTimeString(), 
-      message: '⏳ Aguardando movimento concluir (MOV_FIM)...', 
+      message: `⏳ Aguardando movimento concluir (MOV_FIM) - Timeout: ${timeoutMs/1000}s...`, 
       type: 'info' 
     }]);
 
@@ -1829,7 +1852,7 @@ export const AppComponent = Component({
     } else {
       this.logMessages.update(logs => [...logs, { 
         timestamp: new Date().toLocaleTimeString(), 
-        message: '⚠️ Timeout ao aguardar movimento (10s) - Continuando...', 
+        message: `⚠️ Timeout ao aguardar movimento (${timeoutMs/1000}s) - Continuando...`, 
         type: 'warn' 
       }]);
       // Não lança erro, apenas continua com delay de segurança
