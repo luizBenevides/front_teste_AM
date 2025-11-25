@@ -67575,6 +67575,103 @@ const AppComponent = Component({
         </div>
       </div>
 
+      <!-- Rotina Automatizada de Berços -->
+      <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+        <div class="border-b border-slate-600 pb-2 mb-4">
+          <h2 class="text-lg font-semibold text-slate-300">🔄 Rotina Automatizada de Berços</h2>
+          <p class="text-sm text-slate-400">Configure posições para cada berço e execute rotina completa automatizada.</p>
+        </div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Berço 1 -->
+          <div class="bg-slate-900/50 p-4 rounded-md">
+            <h3 class="text-md font-medium text-green-400 mb-3">🔧 Berço 1</h3>
+            
+            <!-- Adicionar nova posição Berço 1 -->
+            <div class="flex flex-wrap items-center gap-3 mb-3">
+              <label for="newBerco1X" class="text-slate-400">X:</label>
+              <input id="newBerco1X" type="text" [(ngModel)]="newBerco1X" class="form-input w-24" placeholder="41">
+              <label for="newBerco1Y" class="text-slate-400">Y:</label>
+              <input id="newBerco1Y" type="text" [(ngModel)]="newBerco1Y" class="form-input w-24" placeholder="135">
+              <button (click)="addBerco1Position()" [disabled]="!newBerco1X() || !newBerco1Y()" class="action-btn bg-green-600 hover:bg-green-500">➕ Add</button>
+              <button (click)="clearBerco1Positions()" [disabled]="berco1Positions().length === 0" class="action-btn bg-red-600 hover:bg-red-500 text-xs">🗑️</button>
+            </div>
+            
+            <!-- Lista de posições Berço 1 -->
+            <div *ngIf="berco1Positions().length > 0" class="mb-3">
+              <div class="text-xs text-slate-400 mb-2">Posições Berço 1 ({{berco1Positions().length}}):</div>
+              <div class="flex flex-wrap gap-1">
+                <span *ngFor="let pos of berco1Positions(); let i = index" 
+                      class="bg-green-700 px-2 py-1 rounded text-xs text-slate-300">
+                  {{i+1}}: X{{pos.x}} Y{{pos.y}}
+                  <button (click)="removeBerco1Position(i)" class="ml-1 text-red-400 hover:text-red-300">✖</button>
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Berço 2 -->
+          <div class="bg-slate-900/50 p-4 rounded-md">
+            <h3 class="text-md font-medium text-blue-400 mb-3">🔧 Berço 2</h3>
+            
+            <!-- Adicionar nova posição Berço 2 -->
+            <div class="flex flex-wrap items-center gap-3 mb-3">
+              <label for="newBerco2X" class="text-slate-400">X:</label>
+              <input id="newBerco2X" type="text" [(ngModel)]="newBerco2X" class="form-input w-24" placeholder="41">
+              <label for="newBerco2Y" class="text-slate-400">Y:</label>
+              <input id="newBerco2Y" type="text" [(ngModel)]="newBerco2Y" class="form-input w-24" placeholder="135">
+              <button (click)="addBerco2Position()" [disabled]="!newBerco2X() || !newBerco2Y()" class="action-btn bg-blue-600 hover:bg-blue-500">➕ Add</button>
+              <button (click)="clearBerco2Positions()" [disabled]="berco2Positions().length === 0" class="action-btn bg-red-600 hover:bg-red-500 text-xs">🗑️</button>
+            </div>
+            
+            <!-- Lista de posições Berço 2 -->
+            <div *ngIf="berco2Positions().length > 0" class="mb-3">
+              <div class="text-xs text-slate-400 mb-2">Posições Berço 2 ({{berco2Positions().length}}):</div>
+              <div class="flex flex-wrap gap-1">
+                <span *ngFor="let pos of berco2Positions(); let i = index" 
+                      class="bg-blue-700 px-2 py-1 rounded text-xs text-slate-300">
+                  {{i+1}}: X{{pos.x}} Y{{pos.y}}
+                  <button (click)="removeBerco2Position(i)" class="ml-1 text-red-400 hover:text-red-300">✖</button>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Controles da Rotina -->
+        <div class="bg-slate-900/50 p-4 rounded-md mt-4">
+          <h3 class="text-md font-medium text-purple-400 mb-3">⚙️ Configuração da Rotina</h3>
+          
+          <div class="flex flex-wrap items-center gap-4 mb-4">
+            <label for="rotinaRepeats" class="text-slate-400">Repetições da rotina completa:</label>
+            <input id="rotinaRepeats" type="number" [(ngModel)]="rotinaRepeats" min="1" max="99" class="form-input w-16" placeholder="1">
+          </div>
+          
+          <!-- Botão Executar Rotina -->
+          <div class="flex flex-wrap items-center gap-4">
+            <button (click)="executeRotinaCompleta()" 
+                    [disabled]="!isConnected() || (berco1Positions().length === 0 && berco2Positions().length === 0) || isRunningRotina()" 
+                    class="action-btn bg-purple-600 hover:bg-purple-500 px-6 py-3">
+              🚀 Executar Rotina Completa
+            </button>
+            
+            <button (click)="stopRotina()" 
+                    [disabled]="!isRunningRotina()" 
+                    class="action-btn bg-red-600 hover:bg-red-500">
+              🛑 Parar Rotina
+            </button>
+            
+            <div *ngIf="isRunningRotina()" class="text-slate-300">
+              <span class="text-purple-400">🔄 Executando rotina...</span> Ciclo {{currentRotinaCycle()}}/{{rotinaRepeats()}}
+            </div>
+            
+            <div *ngIf="!isRunningRotina()" class="text-xs text-slate-400">
+              Berço 1: {{berco1Positions().length}} posições | Berço 2: {{berco2Positions().length}} posições
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- G90 Sequence -->
       <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
         <div class="border-b border-slate-600 pb-2 mb-4">
@@ -67656,6 +67753,18 @@ const AppComponent = Component({
   newG90X = signal('');
   newG90Y = signal('');
   customLoopRepeats = signal(1);
+  
+  // Variáveis para Rotina Automatizada de Berços
+  berco1Positions = signal([]);
+  newBerco1X = signal('');
+  newBerco1Y = signal('');
+  berco2Positions = signal([]);
+  newBerco2X = signal('');
+  newBerco2Y = signal('');
+  rotinaRepeats = signal(1);
+  isRunningRotina = signal(false);
+  currentRotinaCycle = signal(0);
+  rotinaStopRequested = signal(false);
   
   customCommand = signal('');
 
@@ -68265,6 +68374,466 @@ const AppComponent = Component({
     } finally {
       this.isRunningSequence.set(false);
     }
+  }
+
+  // ==================== ROTINA AUTOMATIZADA DE BERÇOS ====================
+  
+  // Funções para gerenciar posições do Berço 1
+  addBerco1Position() {
+    const x = parseFloat(this.newBerco1X());
+    const y = parseFloat(this.newBerco1Y());
+    
+    if (isNaN(x) || isNaN(y)) {
+      alert('Por favor, insira valores numéricos válidos para X e Y');
+      return;
+    }
+    
+    const newPosition = { x, y };
+    this.berco1Positions.update(positions => [...positions, newPosition]);
+    
+    // Limpar campos
+    this.newBerco1X.set('');
+    this.newBerco1Y.set('');
+    
+    this.logMessages.update(logs => [...logs, {
+      timestamp: new Date().toLocaleTimeString(),
+      message: `➕ Berço 1 - Posição adicionada: X${x} Y${y} (Total: ${this.berco1Positions().length})`,
+      type: 'info'
+    }]);
+  }
+
+  removeBerco1Position(index) {
+    const removedPos = this.berco1Positions()[index];
+    this.berco1Positions.update(positions => 
+      positions.filter((_, i) => i !== index)
+    );
+    
+    this.logMessages.update(logs => [...logs, {
+      timestamp: new Date().toLocaleTimeString(),
+      message: `➖ Berço 1 - Posição removida: X${removedPos.x} Y${removedPos.y}`,
+      type: 'info'
+    }]);
+  }
+
+  clearBerco1Positions() {
+    const count = this.berco1Positions().length;
+    this.berco1Positions.set([]);
+    
+    this.logMessages.update(logs => [...logs, {
+      timestamp: new Date().toLocaleTimeString(),
+      message: `🗑️ Berço 1 - ${count} posições removidas`,
+      type: 'info'
+    }]);
+  }
+
+  // Funções para gerenciar posições do Berço 2
+  addBerco2Position() {
+    const x = parseFloat(this.newBerco2X());
+    const y = parseFloat(this.newBerco2Y());
+    
+    if (isNaN(x) || isNaN(y)) {
+      alert('Por favor, insira valores numéricos válidos para X e Y');
+      return;
+    }
+    
+    const newPosition = { x, y };
+    this.berco2Positions.update(positions => [...positions, newPosition]);
+    
+    // Limpar campos
+    this.newBerco2X.set('');
+    this.newBerco2Y.set('');
+    
+    this.logMessages.update(logs => [...logs, {
+      timestamp: new Date().toLocaleTimeString(),
+      message: `➕ Berço 2 - Posição adicionada: X${x} Y${y} (Total: ${this.berco2Positions().length})`,
+      type: 'info'
+    }]);
+  }
+
+  removeBerco2Position(index) {
+    const removedPos = this.berco2Positions()[index];
+    this.berco2Positions.update(positions => 
+      positions.filter((_, i) => i !== index)
+    );
+    
+    this.logMessages.update(logs => [...logs, {
+      timestamp: new Date().toLocaleTimeString(),
+      message: `➖ Berço 2 - Posição removida: X${removedPos.x} Y${removedPos.y}`,
+      type: 'info'
+    }]);
+  }
+
+  clearBerco2Positions() {
+    const count = this.berco2Positions().length;
+    this.berco2Positions.set([]);
+    
+    this.logMessages.update(logs => [...logs, {
+      timestamp: new Date().toLocaleTimeString(),
+      message: `🗑️ Berço 2 - ${count} posições removidas`,
+      type: 'info'
+    }]);
+  }
+
+  // Função principal da Rotina Automatizada
+  async executeRotinaCompleta() {
+    const berco1Pos = this.berco1Positions();
+    const berco2Pos = this.berco2Positions();
+    const repeats = this.rotinaRepeats();
+    
+    if (berco1Pos.length === 0 && berco2Pos.length === 0) {
+      alert('Adicione pelo menos uma posição em um dos berços!');
+      return;
+    }
+    
+    this.isRunningRotina.set(true);
+    this.rotinaStopRequested.set(false);
+    this.currentRotinaCycle.set(0);
+    
+    try {
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `🚀 === INICIANDO ROTINA AUTOMATIZADA DE BERÇOS (${repeats}x repetições) ===`,
+        type: 'success'
+      }]);
+
+      for (let cycle = 1; cycle <= repeats; cycle++) {
+        if (this.rotinaStopRequested()) break;
+        
+        this.currentRotinaCycle.set(cycle);
+        
+        this.logMessages.update(logs => [...logs, {
+          timestamp: new Date().toLocaleTimeString(),
+          message: `🔄 === CICLO ${cycle}/${repeats} ===`,
+          type: 'info'
+        }]);
+
+        // =============== BERÇO 1 ===============
+        if (berco1Pos.length > 0) {
+          await this.executarSequenciaBerco1(cycle, repeats, cycle > 1);
+          if (this.rotinaStopRequested()) break;
+          
+          // Delay entre berços para estabilização
+          this.logMessages.update(logs => [...logs, {
+            timestamp: new Date().toLocaleTimeString(),
+            message: `⏸️ Aguardando estabilização entre berços...`,
+            type: 'info'
+          }]);
+          await this.delay(2000);
+        }
+
+        // =============== BERÇO 2 ===============
+        if (berco2Pos.length > 0) {
+          await this.executarSequenciaBerco2(cycle, repeats, cycle > 1);
+          if (this.rotinaStopRequested()) break;
+        }
+        
+        this.logMessages.update(logs => [...logs, {
+          timestamp: new Date().toLocaleTimeString(),
+          message: `✅ Ciclo ${cycle}/${repeats} concluído!`,
+          type: 'success'
+        }]);
+      }
+
+      if (this.rotinaStopRequested()) {
+        this.logMessages.update(logs => [...logs, {
+          timestamp: new Date().toLocaleTimeString(),
+          message: `🛑 ROTINA AUTOMATIZADA CANCELADA pelo usuário`,
+          type: 'warn'
+        }]);
+      } else {
+        this.logMessages.update(logs => [...logs, {
+          timestamp: new Date().toLocaleTimeString(),
+          message: `🎉 === ROTINA AUTOMATIZADA CONCLUÍDA (${repeats}x repetições) ===`,
+          type: 'success'
+        }]);
+      }
+
+    } catch (error) {
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `❌ Erro na Rotina Automatizada: ${error.message}`,
+        type: 'error'
+      }]);
+    } finally {
+      this.isRunningRotina.set(false);
+      this.currentRotinaCycle.set(0);
+    }
+  }
+
+  // Sequência completa do Berço 1
+  async executarSequenciaBerco1(cycle, totalCycles, jaAtivado = false) {
+    this.logMessages.update(logs => [...logs, {
+      timestamp: new Date().toLocaleTimeString(),
+      message: `🔧 [${cycle}/${totalCycles}] === BERÇO 1 - INICIANDO ===`,
+      type: 'info'
+    }]);
+
+    const port1 = this.getPort1Id();
+    const port2 = this.getPort2Id();
+    if (!port1 || !port2) {
+      throw new Error('Portas não conectadas!');
+    }
+
+    if (!jaAtivado) {
+      // 1. Ativar Pilha 1
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `🔋 [${cycle}/${totalCycles}] Berço 1 - Ativando Pilha 1 (K7_1)`,
+        type: 'info'
+      }]);
+      await this.serialService.sendCommand('K7_1', false, port2);
+      await this.delay(1000);
+
+      // 2. Travar Berço 1
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `🔒 [${cycle}/${totalCycles}] Berço 1 - Travando (K4_1)`,
+        type: 'info'
+      }]);
+      await this.serialService.sendCommand('K4_1', false, port2);
+      await this.delay(1000);
+    }
+
+    // 3. Ativar (mover) Berço 1
+    this.logMessages.update(logs => [...logs, {
+      timestamp: new Date().toLocaleTimeString(),
+      message: `⚡ [${cycle}/${totalCycles}] Berço 1 - Ativando/Movendo (K2_1)`,
+      type: 'info'
+    }]);
+    await this.serialService.sendCommand('K2_1', false, port2);
+    await this.delay(2000);
+
+    // 4. Executar posições G90 do Berço 1
+    const positions = this.berco1Positions();
+    this.logMessages.update(logs => [...logs, {
+      timestamp: new Date().toLocaleTimeString(),
+      message: `🎯 [${cycle}/${totalCycles}] Berço 1 - Executando ${positions.length} posições G90`,
+      type: 'info'
+    }]);
+
+    for (let i = 0; i < positions.length; i++) {
+      if (this.rotinaStopRequested()) break;
+      
+      const pos = positions[i];
+      const comando = `G90 X${pos.x} Y${pos.y}`;
+      
+      // Movimento
+      await this.serialService.sendCommand(comando, true, port1);
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `➡ [${cycle}/${totalCycles}] Berço 1 - P${i+1}: Movendo para X${pos.x} Y${pos.y}`,
+        type: 'info'
+      }]);
+      
+      await this.aguardarMovimentoConcluido(pos.x, pos.y);
+      
+      // Verificar se houve erro nos logs recentes
+      const recentLogs = this.logMessages().slice(-3);
+      const hasError = recentLogs.some(log => 
+        log.type === 'receive' && (log.message.includes('error:') || log.message.includes('ALARM'))
+      );
+      
+      if (hasError) {
+        this.logMessages.update(logs => [...logs, {
+          timestamp: new Date().toLocaleTimeString(),
+          message: `⚠️ [${cycle}/${totalCycles}] Berço 1 - P${i+1}: Erro detectado, executando recovery...`,
+          type: 'warn'
+        }]);
+        
+        // Reset do GRBL
+        await this.serialService.sendCommand('\x18', false, port1);
+        await this.delay(500);
+        await this.serialService.sendCommand('$X', false, port1);
+        await this.delay(1000);
+        
+        // Continuar mesmo com erro
+      }
+      
+      // Pressionar
+      await this.serialService.sendCommand('P_2', false, port2);
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `👆 [${cycle}/${totalCycles}] Berço 1 - P${i+1}: Pressionando`,
+        type: 'info'
+      }]);
+      await this.delay(1000);
+      
+      // Soltar
+      await this.serialService.sendCommand('P_0', false, port2);
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `✋ [${cycle}/${totalCycles}] Berço 1 - P${i+1}: Liberando`,
+        type: 'info'
+      }]);
+      await this.delay(500);
+    }
+
+    // 5. Voltar para HOME
+    this.logMessages.update(logs => [...logs, {
+      timestamp: new Date().toLocaleTimeString(),
+      message: `🏠 [${cycle}/${totalCycles}] Berço 1 - Retornando para X0 Y0`,
+      type: 'info'
+    }]);
+    await this.serialService.sendCommand('G90 X0 Y0', true, port1);
+    await this.aguardarMovimentoConcluido(0, 0);
+
+    // 6. Berço 1 volta
+    this.logMessages.update(logs => [...logs, {
+      timestamp: new Date().toLocaleTimeString(),
+      message: `🔄 [${cycle}/${totalCycles}] Berço 1 - Voltando posição inicial (K2_0)`,
+      type: 'info'
+    }]);
+    await this.serialService.sendCommand('K2_0', false, port2);
+    await this.delay(2000);
+
+    this.logMessages.update(logs => [...logs, {
+      timestamp: new Date().toLocaleTimeString(),
+      message: `✅ [${cycle}/${totalCycles}] === BERÇO 1 - CONCLUÍDO ===`,
+      type: 'success'
+    }]);
+  }
+
+  // Sequência completa do Berço 2
+  async executarSequenciaBerco2(cycle, totalCycles, jaAtivado = false) {
+    this.logMessages.update(logs => [...logs, {
+      timestamp: new Date().toLocaleTimeString(),
+      message: `🔧 [${cycle}/${totalCycles}] === BERÇO 2 - INICIANDO ===`,
+      type: 'info'
+    }]);
+
+    const port1 = this.getPort1Id();
+    const port2 = this.getPort2Id();
+    if (!port1 || !port2) {
+      throw new Error('Portas não conectadas!');
+    }
+
+    if (!jaAtivado) {
+      // 1. Ativar Pilha 2
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `🔋 [${cycle}/${totalCycles}] Berço 2 - Ativando Pilha 2 (K6_1)`,
+        type: 'info'
+      }]);
+      await this.serialService.sendCommand('K6_1', false, port2);
+      await this.delay(1000);
+
+      // 2. Travar Berço 2
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `🔒 [${cycle}/${totalCycles}] Berço 2 - Travando (K3_1)`,
+        type: 'info'
+      }]);
+      await this.serialService.sendCommand('K3_1', false, port2);
+      await this.delay(1000);
+    }
+
+    // 3. Ativar (mover) Berço 2
+    this.logMessages.update(logs => [...logs, {
+      timestamp: new Date().toLocaleTimeString(),
+      message: `⚡ [${cycle}/${totalCycles}] Berço 2 - Ativando/Movendo (K1_1)`,
+      type: 'info'
+    }]);
+    await this.serialService.sendCommand('K1_1', false, port2);
+    await this.delay(2000);
+
+    // 4. Executar posições G90 do Berço 2
+    const positions = this.berco2Positions();
+    this.logMessages.update(logs => [...logs, {
+      timestamp: new Date().toLocaleTimeString(),
+      message: `🎯 [${cycle}/${totalCycles}] Berço 2 - Executando ${positions.length} posições G90`,
+      type: 'info'
+    }]);
+
+    for (let i = 0; i < positions.length; i++) {
+      if (this.rotinaStopRequested()) break;
+      
+      const pos = positions[i];
+      const comando = `G90 X${pos.x} Y${pos.y}`;
+      
+      // Movimento
+      await this.serialService.sendCommand(comando, true, port1);
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `➡ [${cycle}/${totalCycles}] Berço 2 - P${i+1}: Movendo para X${pos.x} Y${pos.y}`,
+        type: 'info'
+      }]);
+      
+      await this.aguardarMovimentoConcluido(pos.x, pos.y);
+      
+      // Verificar se houve erro nos logs recentes
+      const recentLogs = this.logMessages().slice(-3);
+      const hasError = recentLogs.some(log => 
+        log.type === 'receive' && (log.message.includes('error:') || log.message.includes('ALARM'))
+      );
+      
+      if (hasError) {
+        this.logMessages.update(logs => [...logs, {
+          timestamp: new Date().toLocaleTimeString(),
+          message: `⚠️ [${cycle}/${totalCycles}] Berço 2 - P${i+1}: Erro detectado, executando recovery...`,
+          type: 'warn'
+        }]);
+        
+        // Reset do GRBL
+        await this.serialService.sendCommand('\x18', false, port1);
+        await this.delay(500);
+        await this.serialService.sendCommand('$X', false, port1);
+        await this.delay(1000);
+        
+        // Continuar mesmo com erro
+      }
+      
+      // Pressionar
+      await this.serialService.sendCommand('P_2', false, port2);
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `👆 [${cycle}/${totalCycles}] Berço 2 - P${i+1}: Pressionando`,
+        type: 'info'
+      }]);
+      await this.delay(1000);
+      
+      // Soltar
+      await this.serialService.sendCommand('P_0', false, port2);
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `✋ [${cycle}/${totalCycles}] Berço 2 - P${i+1}: Liberando`,
+        type: 'info'
+      }]);
+      await this.delay(500);
+    }
+
+    // 5. Voltar para HOME
+    this.logMessages.update(logs => [...logs, {
+      timestamp: new Date().toLocaleTimeString(),
+      message: `🏠 [${cycle}/${totalCycles}] Berço 2 - Retornando para X0 Y0`,
+      type: 'info'
+    }]);
+    await this.serialService.sendCommand('G90 X0 Y0', true, port1);
+    await this.aguardarMovimentoConcluido(0, 0);
+
+    // 6. Berço 2 volta
+    this.logMessages.update(logs => [...logs, {
+      timestamp: new Date().toLocaleTimeString(),
+      message: `🔄 [${cycle}/${totalCycles}] Berço 2 - Voltando posição inicial (K1_0)`,
+      type: 'info'
+    }]);
+    await this.serialService.sendCommand('K1_0', false, port2);
+    await this.delay(2000);
+
+    this.logMessages.update(logs => [...logs, {
+      timestamp: new Date().toLocaleTimeString(),
+      message: `✅ [${cycle}/${totalCycles}] === BERÇO 2 - CONCLUÍDO ===`,
+      type: 'success'
+    }]);
+  }
+
+  // Parar rotina
+  stopRotina() {
+    this.rotinaStopRequested.set(true);
+    this.logMessages.update(logs => [...logs, {
+      timestamp: new Date().toLocaleTimeString(),
+      message: `🛑 Solicitado cancelamento da Rotina Automatizada...`,
+      type: 'warn'
+    }]);
   }
 
   // Métodos para comandos K7_1 e K4_1
