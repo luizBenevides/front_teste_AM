@@ -209,6 +209,9 @@ export const AppComponent = Component({
                 <button (click)="sendK6_0()" [disabled]="!isConnected()" class="control-btn bg-purple-600 hover:bg-purple-500">
                   📥 K6_0 DESATIVAR PILHA 2
                 </button>
+                <button (click)="sendB1_1()" [disabled]="!isConnected()" class="control-btn bg-pink-600 hover:bg-pink-500">
+                  🔌 B1_1 ALIMENTAÇÃO BERÇO 1
+                </button>
               </div>
               
               <!-- Segunda linha de botões - BERÇO 2 e controles adicionais -->
@@ -431,6 +434,107 @@ export const AppComponent = Component({
         </div>
       </div>
 
+      <!-- Teste de Comunicação IR (Serial 3 e 4) -->
+      <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700 mt-4">
+        <div class="border-b border-slate-600 pb-2 mb-4">
+          <h2 class="text-lg font-semibold text-slate-300">📡 Teste Comunicação IR (Arduino Nanos)</h2>
+          <p class="text-sm text-slate-400">Testar comunicação com portas Serial 3 e 4 para dados IR dos Arduino Nanos.</p>
+        </div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+          <!-- Serial 3 -->
+          <div class="bg-slate-900/50 p-3 rounded-md">
+            <h3 class="text-md font-medium text-orange-400 mb-3">📟 Serial 3 (Arduino Nano 1)</h3>
+            <div class="flex flex-wrap items-center gap-3 mb-3">
+              <button (click)="connectPort3()" [disabled]="isPort3Connected()" class="action-btn bg-orange-600 hover:bg-orange-500">
+                🔌 Conectar Serial 3
+              </button>
+              <button (click)="disconnectPort3()" [disabled]="!isPort3Connected()" class="action-btn bg-red-600 hover:bg-red-500">
+                🔌 Desconectar
+              </button>
+            </div>
+            
+            <div class="flex gap-2 mb-2">
+              <button (click)="sendGetCommandPort3()" [disabled]="!isPort3Connected()" class="action-btn bg-green-600 hover:bg-green-500">
+                📡 GET (Port 3)
+              </button>
+              <button (click)="resetNano1()" [disabled]="!isPort3Connected()" class="action-btn bg-orange-600 hover:bg-orange-500 text-xs">
+                🔄 Reset Nano
+              </button>
+              <button (click)="clearIRData()" class="action-btn bg-gray-600 hover:bg-gray-500 text-xs">
+                🗑️ Limpar
+              </button>
+            </div>
+            
+            <div class="bg-slate-800 p-2 rounded text-xs font-mono">
+              <div class="text-slate-400 mb-1">Status: 
+                <span [ngClass]="isPort3Connected() ? 'text-green-400' : 'text-red-400'">
+                  {{ isPort3Connected() ? 'Conectado' : 'Desconectado' }}
+                </span>
+              </div>
+              <div class="text-slate-400">Último comando: <span class="text-cyan-400">{{ lastIRCommand3() || 'Nenhum' }}</span></div>
+              <div class="text-slate-400">Última resposta: <span class="text-lime-400">{{ lastIRResponse3() || 'Nenhuma' }}</span></div>
+            </div>
+          </div>
+          
+          <!-- Serial 4 -->
+          <div class="bg-slate-900/50 p-3 rounded-md">
+            <h3 class="text-md font-medium text-purple-400 mb-3">📟 Serial 4 (Arduino Nano 2)</h3>
+            <div class="flex flex-wrap items-center gap-3 mb-3">
+              <button (click)="connectPort4()" [disabled]="isPort4Connected()" class="action-btn bg-purple-600 hover:bg-purple-500">
+                🔌 Conectar Serial 4
+              </button>
+              <button (click)="disconnectPort4()" [disabled]="!isPort4Connected()" class="action-btn bg-red-600 hover:bg-red-500">
+                🔌 Desconectar
+              </button>
+            </div>
+            
+            <div class="flex gap-2 mb-2">
+              <button (click)="sendGetCommandPort4()" [disabled]="!isPort4Connected()" class="action-btn bg-green-600 hover:bg-green-500">
+                📡 GET (Port 4)
+              </button>
+              <button (click)="resetNano2()" [disabled]="!isPort4Connected()" class="action-btn bg-purple-600 hover:bg-purple-500 text-xs">
+                🔄 Reset Nano
+              </button>
+              <button (click)="testBothPorts()" [disabled]="!isPort3Connected() && !isPort4Connected()" class="action-btn bg-blue-600 hover:bg-blue-500">
+                🔄 Ambas Portas
+              </button>
+            </div>
+            
+            <div class="bg-slate-800 p-2 rounded text-xs font-mono">
+              <div class="text-slate-400 mb-1">Status: 
+                <span [ngClass]="isPort4Connected() ? 'text-green-400' : 'text-red-400'">
+                  {{ isPort4Connected() ? 'Conectado' : 'Desconectado' }}
+                </span>
+              </div>
+              <div class="text-slate-400">Último comando: <span class="text-cyan-400">{{ lastIRCommand4() || 'Nenhum' }}</span></div>
+              <div class="text-slate-400">Última resposta: <span class="text-lime-400">{{ lastIRResponse4() || 'Nenhuma' }}</span></div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Dados IR Recebidos -->
+        <div class="bg-slate-900/50 p-3 rounded-md">
+          <h3 class="text-md font-medium text-cyan-400 mb-3">📊 Dados IR Recebidos</h3>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div>
+              <label class="text-slate-400 text-sm">Serial 3 - Dados Hexadecimais:</label>
+              <div class="bg-slate-800 p-2 rounded mt-1 font-mono text-sm min-h-20 max-h-32 overflow-y-auto">
+                <div *ngFor="let data of irDataPort3()" class="text-lime-400">{{ data }}</div>
+                <div *ngIf="irDataPort3().length === 0" class="text-slate-500">Nenhum dado recebido ainda...</div>
+              </div>
+            </div>
+            <div>
+              <label class="text-slate-400 text-sm">Serial 4 - Dados Hexadecimais:</label>
+              <div class="bg-slate-800 p-2 rounded mt-1 font-mono text-sm min-h-20 max-h-32 overflow-y-auto">
+                <div *ngFor="let data of irDataPort4()" class="text-lime-400">{{ data }}</div>
+                <div *ngIf="irDataPort4().length === 0" class="text-slate-500">Nenhum dado recebido ainda...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
     
     <!-- Right Column: Log -->
@@ -464,14 +568,26 @@ export const AppComponent = Component({
   // Multiple port configuration
   selectedPort1 = signal('');
   selectedPort2 = signal('');
+  selectedPort3 = signal('');
+  selectedPort4 = signal('');
   baudRate1 = signal(9600);  // Match Python default
   baudRate2 = signal(9600);  // Match Python default
+  baudRate3 = signal(115200);  // Arduino Nano padrão
+  baudRate4 = signal(115200);  // Arduino Nano padrão
   baudRates = [9600, 19200, 38400, 57600, 115200];
   
   // Port management
   availablePorts = this.serialService.availablePorts;
   connectedPorts = this.serialService.connectedPorts;
   portConnections = signal(new Map()); // Track which logical port maps to which physical port
+
+  // Variáveis para comunicação IR (Arduino Nanos)
+  lastIRCommand3 = signal('');
+  lastIRResponse3 = signal('');
+  lastIRCommand4 = signal('');
+  lastIRResponse4 = signal('');
+  irDataPort3 = signal([]);
+  irDataPort4 = signal([]);
 
   g90x = signal('');
   g90y = signal('');
@@ -533,6 +649,38 @@ export const AppComponent = Component({
 
   delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // Processa dados IR automaticamente dos logs
+  processIRDataFromLogs() {
+    // Monitora os últimos logs para capturar respostas IR
+    const logs = this.logMessages();
+    const recentLogs = logs.slice(-10); // Últimos 10 logs
+    
+    for (const log of recentLogs) {
+      if (log.message.includes('←') && log.type === 'receive') {
+        // Extrai o portId e os dados da mensagem
+        const match = log.message.match(/← (Port_\d+): (.+)/);
+        if (match) {
+          const [, portId, data] = match;
+          
+          // Verifica se é dados IR (contém padrões específicos)
+          if (data.includes(';') || data.startsWith('X') || data.includes('FF')) {
+            // Determina se é Port 3 ou 4
+            const port3 = this.getPort3Id();
+            const port4 = this.getPort4Id();
+            
+            if (portId === port3) {
+              this.lastIRResponse3.set(data);
+              this.irDataPort3.update(currentData => [...currentData, `${log.timestamp}: ${data}`]);
+            } else if (portId === port4) {
+              this.lastIRResponse4.set(data);
+              this.irDataPort4.update(currentData => [...currentData, `${log.timestamp}: ${data}`]);
+            }
+          }
+        }
+      }
+    }
   }
 
   async refreshPorts() {
@@ -1791,6 +1939,23 @@ export const AppComponent = Component({
     
     await this.serialService.sendCommand('RST', false, port2);
   }
+
+  // B1_1 - ATIVAR ALIMENTAÇÃO DO BERÇO 1
+  async sendB1_1() {
+    const port2 = this.getPort2Id();
+    if (!port2) {
+      alert("Porta 2 não conectada!");
+      return;
+    }
+    
+    this.logMessages.update(logs => [...logs, { 
+      timestamp: new Date().toLocaleTimeString(),
+      message: "🔌 Enviando B1_1 (ATIVAR ALIMENTAÇÃO BERÇO 1)...",
+      type: "info"
+    }]);
+    
+    await this.serialService.sendCommand('B1_1', false, port2);
+  }
   
   sendSingleG90(command) {
     this.serialService.sendCommand(command);
@@ -1837,7 +2002,7 @@ export const AppComponent = Component({
       // Apenas pressiona e solta, sem movimento
       if (this.getPort1Id()) {
         // Pressiona
-        await this.serialService.sendCommand('P_2', false, this.getPort2Id());
+        await this.serialService.sendCommand('P_1', false, this.getPort2Id());
         this.logMessages.update(logs => [...logs, { 
           timestamp: new Date().toLocaleTimeString(), 
           message: '👆 Pressionando botão...', 
@@ -2429,6 +2594,385 @@ export const AppComponent = Component({
     }
   }
 
+  // ==================== COMUNICAÇÃO IR (ARDUINO NANOS) ====================
+  
+  // Conectar Serial 3
+  async connectPort3() {
+    try {
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `🔍 Iniciando conexão Serial 3...`,
+        type: 'info'
+      }]);
+
+      // Solicitar nova porta
+      const result = await this.serialService.requestNewPort();
+      if (!result) {
+        this.logMessages.update(logs => [...logs, {
+          timestamp: new Date().toLocaleTimeString(),
+          message: `⚠️ Nenhuma porta selecionada para Serial 3`,
+          type: 'warn'
+        }]);
+        return;
+      }
+
+      const { port, portId } = result;
+      
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `📋 Serial 3 - Porta selecionada: ${portId}, BaudRate: ${this.baudRate3()}`,
+        type: 'info'
+      }]);
+      
+      // Adicionar à lista de portas disponíveis
+      this.availablePorts.update(ports => [...ports, portId]);
+      this.selectedPort3.set(portId);
+      
+      // Conectar
+      const success = await this.serialService.connectPort(portId, port, this.baudRate3());
+      
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `🔌 Serial 3 - Resultado da conexão: ${success ? 'SUCESSO' : 'FALHOU'}`,
+        type: success ? 'info' : 'error'
+      }]);
+      
+      if (success) {
+        this.portConnections.update(connections => new Map(connections.set('port3', portId)));
+        
+        // Resetar Arduino Nano após conexão (equivalente ao resetNano1 do C#)
+        this.logMessages.update(logs => [...logs, {
+          timestamp: new Date().toLocaleTimeString(),
+          message: `🔄 Resetando Arduino Nano 1...`,
+          type: 'info'
+        }]);
+        
+        await this.serialService.resetArduinoNano(portId);
+        
+        // Aguardar estabilização após reset
+        await this.delay(500);
+        
+        this.logMessages.update(logs => [...logs, {
+          timestamp: new Date().toLocaleTimeString(),
+          message: `📡 Serial 3 CONECTADA: ${portId} (115200 baud) - Arduino Nano resetado`,
+          type: 'info'
+        }]);
+
+        // O SerialService já processa automaticamente os dados recebidos
+        // Os dados aparecem nos logs como "← Port_xxx: dados"
+        this.logMessages.update(logs => [...logs, {
+          timestamp: new Date().toLocaleTimeString(),
+          message: `✅ Serial 3 pronta para comunicação IR`,
+          type: 'info'
+        }]);
+      } else {
+        this.logMessages.update(logs => [...logs, {
+          timestamp: new Date().toLocaleTimeString(),
+          message: `❌ Falha ao conectar Serial 3 - Verifique se o Arduino Nano está conectado`,
+          type: 'error'
+        }]);
+      }
+      
+    } catch (error) {
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `❌ Erro ao conectar Serial 3: ${error.message}`,
+        type: 'error'
+      }]);
+    }
+  }
+
+  // Conectar Serial 4
+  async connectPort4() {
+    try {
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `🔍 Iniciando conexão Serial 4...`,
+        type: 'info'
+      }]);
+
+      // Solicitar nova porta
+      const result = await this.serialService.requestNewPort();
+      if (!result) {
+        this.logMessages.update(logs => [...logs, {
+          timestamp: new Date().toLocaleTimeString(),
+          message: `⚠️ Nenhuma porta selecionada para Serial 4`,
+          type: 'warn'
+        }]);
+        return;
+      }
+
+      const { port, portId } = result;
+      
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `📋 Serial 4 - Porta selecionada: ${portId}, BaudRate: ${this.baudRate4()}`,
+        type: 'info'
+      }]);
+      
+      // Adicionar à lista de portas disponíveis
+      this.availablePorts.update(ports => [...ports, portId]);
+      this.selectedPort4.set(portId);
+      
+      // Conectar
+      const success = await this.serialService.connectPort(portId, port, this.baudRate4());
+      
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `🔌 Serial 4 - Resultado da conexão: ${success ? 'SUCESSO' : 'FALHOU'}`,
+        type: success ? 'info' : 'error'
+      }]);
+      
+      if (success) {
+        this.portConnections.update(connections => new Map(connections.set('port4', portId)));
+        
+        // Resetar Arduino Nano após conexão (equivalente ao resetNano2 do C#)
+        this.logMessages.update(logs => [...logs, {
+          timestamp: new Date().toLocaleTimeString(),
+          message: `🔄 Resetando Arduino Nano 2...`,
+          type: 'info'
+        }]);
+        
+        await this.serialService.resetArduinoNano(portId);
+        
+        // Aguardar estabilização após reset
+        await this.delay(500);
+        
+        this.logMessages.update(logs => [...logs, {
+          timestamp: new Date().toLocaleTimeString(),
+          message: `📡 Serial 4 CONECTADA: ${portId} (115200 baud) - Arduino Nano resetado`,
+          type: 'info'
+        }]);
+
+        // O SerialService já processa automaticamente os dados recebidos
+        // Os dados aparecem nos logs como "← Port_xxx: dados"
+        this.logMessages.update(logs => [...logs, {
+          timestamp: new Date().toLocaleTimeString(),
+          message: `✅ Serial 4 pronta para comunicação IR`,
+          type: 'info'
+        }]);
+      } else {
+        this.logMessages.update(logs => [...logs, {
+          timestamp: new Date().toLocaleTimeString(),
+          message: `❌ Falha ao conectar Serial 4 - Verifique se o Arduino Nano está conectado`,
+          type: 'error'
+        }]);
+      }
+      
+    } catch (error) {
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `❌ Erro ao conectar Serial 4: ${error.message}`,
+        type: 'error'
+      }]);
+    }
+  }
+
+  // Desconectar portas IR
+  async disconnectPort3() {
+    const portId = this.getPort3Id();
+    if (portId) {
+      await this.serialService.disconnectPort(portId);
+      this.portConnections.update(connections => {
+        const newMap = new Map(connections);
+        newMap.delete('port3');
+        return newMap;
+      });
+      
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `📡 Serial 3 desconectada`,
+        type: 'info'
+      }]);
+    }
+  }
+
+  async disconnectPort4() {
+    const portId = this.getPort4Id();
+    if (portId) {
+      await this.serialService.disconnectPort(portId);
+      this.portConnections.update(connections => {
+        const newMap = new Map(connections);
+        newMap.delete('port4');
+        return newMap;
+      });
+      
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `📡 Serial 4 desconectada`,
+        type: 'info'
+      }]);
+    }
+  }
+
+  // Verificar status de conexão
+  isPort3Connected() {
+    return this.getPort3Id() !== null;
+  }
+
+  isPort4Connected() {
+    return this.getPort4Id() !== null;
+  }
+
+  // Enviar comando GET para cada porta
+  async sendGetCommandPort3() {
+    const port3 = this.getPort3Id();
+    if (!port3) {
+      alert("Serial 3 não conectada!");
+      return;
+    }
+
+    try {
+      this.lastIRCommand3.set('GET');
+      await this.serialService.sendCommand('GET', true, port3); // true para adicionar \\n
+      
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `📡 → Serial 3: GET`,
+        type: 'send'
+      }]);
+
+      // Aguardar resposta e processar dados IR
+      await this.delay(100);
+      this.processIRDataFromLogs();
+      
+    } catch (error) {
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `❌ Erro ao enviar GET para Serial 3: ${error.message}`,
+        type: 'error'
+      }]);
+    }
+  }
+
+  async sendGetCommandPort4() {
+    const port4 = this.getPort4Id();
+    if (!port4) {
+      alert("Serial 4 não conectada!");
+      return;
+    }
+
+    try {
+      this.lastIRCommand4.set('GET');
+      await this.serialService.sendCommand('GET', true, port4); // true para adicionar \\n
+      
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `📡 → Serial 4: GET`,
+        type: 'send'
+      }]);
+
+      // Aguardar resposta e processar dados IR
+      await this.delay(100);
+      this.processIRDataFromLogs();
+      
+    } catch (error) {
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `❌ Erro ao enviar GET para Serial 4: ${error.message}`,
+        type: 'error'
+      }]);
+    }
+  }
+
+  // Testar ambas as portas sequencialmente
+  async testBothPorts() {
+    this.logMessages.update(logs => [...logs, {
+      timestamp: new Date().toLocaleTimeString(),
+      message: `🔄 Testando ambas as portas IR...`,
+      type: 'info'
+    }]);
+
+    if (this.isPort3Connected()) {
+      await this.sendGetCommandPort3();
+      await this.delay(500);
+    }
+
+    if (this.isPort4Connected()) {
+      await this.sendGetCommandPort4();
+      await this.delay(500);
+    }
+  }
+
+  // Limpar dados IR
+  clearIRData() {
+    this.irDataPort3.set([]);
+    this.irDataPort4.set([]);
+    this.lastIRResponse3.set('');
+    this.lastIRResponse4.set('');
+    this.lastIRCommand3.set('');
+    this.lastIRCommand4.set('');
+    
+    this.logMessages.update(logs => [...logs, {
+      timestamp: new Date().toLocaleTimeString(),
+      message: `🗑️ Dados IR limpos`,
+      type: 'info'
+    }]);
+  }
+
+  // Reset manual dos Arduino Nanos (equivalente ao C#)
+  async resetNano1() {
+    const port3 = this.getPort3Id();
+    if (!port3) {
+      alert("Serial 3 não conectada!");
+      return;
+    }
+
+    try {
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `🔄 Resetando Arduino Nano 1 manualmente...`,
+        type: 'info'
+      }]);
+
+      await this.serialService.resetArduinoNano(port3);
+      
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `✅ Arduino Nano 1 resetado com sucesso`,
+        type: 'info'
+      }]);
+      
+    } catch (error) {
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `❌ Erro ao resetar Arduino Nano 1: ${error.message}`,
+        type: 'error'
+      }]);
+    }
+  }
+
+  async resetNano2() {
+    const port4 = this.getPort4Id();
+    if (!port4) {
+      alert("Serial 4 não conectada!");
+      return;
+    }
+
+    try {
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `🔄 Resetando Arduino Nano 2 manualmente...`,
+        type: 'info'
+      }]);
+
+      await this.serialService.resetArduinoNano(port4);
+      
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `✅ Arduino Nano 2 resetado com sucesso`,
+        type: 'info'
+      }]);
+      
+    } catch (error) {
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `❌ Erro ao resetar Arduino Nano 2: ${error.message}`,
+        type: 'error'
+      }]);
+    }
+  }
+
   // Métodos auxiliares para obter IDs das portas
   getPort1Id() {
     return this.portConnections().get('port1') || null;
@@ -2436,6 +2980,14 @@ export const AppComponent = Component({
 
   getPort2Id() {
     return this.portConnections().get('port2') || null;
+  }
+
+  getPort3Id() {
+    return this.portConnections().get('port3') || null;
+  }
+
+  getPort4Id() {
+    return this.portConnections().get('port4') || null;
   }
   
   async testG90Commands() {
