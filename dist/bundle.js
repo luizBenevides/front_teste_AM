@@ -67796,6 +67796,9 @@ const AppComponent = Component({
               <button (click)="testBothPorts()" [disabled]="!isPort3Connected() && !isPort4Connected()" class="action-btn bg-blue-600 hover:bg-blue-500">
                 🔄 Ambas Portas
               </button>
+              <button (click)="debugIRPorts()" class="action-btn bg-yellow-600 hover:bg-yellow-500 text-xs">
+                🔧 Debug IR
+              </button>
             </div>
             
             <div class="bg-slate-800 p-2 rounded text-xs font-mono">
@@ -70120,6 +70123,21 @@ const AppComponent = Component({
     }
 
     try {
+      // Verificar se a porta ainda está ativa
+      const portData = this.serialService.serialPorts.get(port3);
+      if (!portData || !portData.isReading) {
+        this.logMessages.update(logs => [...logs, {
+          timestamp: new Date().toLocaleTimeString(),
+          message: `⚠️ Serial 3 sem leitura ativa. Reiniciando...`,
+          type: 'warn'
+        }]);
+        
+        if (portData) {
+          portData.isReading = true;
+          this.serialService.startReading(port3);
+        }
+      }
+
       this.lastIRCommand3.set('GET');
       await this.serialService.sendCommand('GET', true, port3); // true para adicionar \\n
       
@@ -70130,7 +70148,7 @@ const AppComponent = Component({
       }]);
 
       // Aguardar resposta e processar dados IR
-      await this.delay(100);
+      await this.delay(500); // Aumentar delay para dar tempo da resposta
       this.processIRDataFromLogs();
       
     } catch (error) {
@@ -70150,6 +70168,21 @@ const AppComponent = Component({
     }
 
     try {
+      // Verificar se a porta ainda está ativa
+      const portData = this.serialService.serialPorts.get(port4);
+      if (!portData || !portData.isReading) {
+        this.logMessages.update(logs => [...logs, {
+          timestamp: new Date().toLocaleTimeString(),
+          message: `⚠️ Serial 4 sem leitura ativa. Reiniciando...`,
+          type: 'warn'
+        }]);
+        
+        if (portData) {
+          portData.isReading = true;
+          this.serialService.startReading(port4);
+        }
+      }
+
       this.lastIRCommand4.set('GET');
       await this.serialService.sendCommand('GET', true, port4); // true para adicionar \\n
       
@@ -70160,7 +70193,7 @@ const AppComponent = Component({
       }]);
 
       // Aguardar resposta e processar dados IR
-      await this.delay(100);
+      await this.delay(500); // Aumentar delay para dar tempo da resposta
       this.processIRDataFromLogs();
       
     } catch (error) {
@@ -70188,6 +70221,59 @@ const AppComponent = Component({
     if (this.isPort4Connected()) {
       await this.sendGetCommandPort4();
       await this.delay(500);
+    }
+  }
+
+  // Debug das portas IR
+  debugIRPorts() {
+    const port3 = this.getPort3Id();
+    const port4 = this.getPort4Id();
+    
+    this.logMessages.update(logs => [...logs, {
+      timestamp: new Date().toLocaleTimeString(),
+      message: `🔧 DEBUG IR - Port 3: ${port3 || 'NULL'}, Port 4: ${port4 || 'NULL'}`,
+      type: 'info'
+    }]);
+
+    // Verificar status das portas
+    if (port3) {
+      const portData3 = this.serialService.serialPorts.get(port3);
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `📊 Port 3 Status: ${portData3 ? `Ativa=${portData3.isReading}` : 'DESCONECTADA'}`,
+        type: 'info'
+      }]);
+      
+      // Reativar leitura se necessário
+      if (portData3 && !portData3.isReading) {
+        portData3.isReading = true;
+        this.serialService.startReading(port3);
+        this.logMessages.update(logs => [...logs, {
+          timestamp: new Date().toLocaleTimeString(),
+          message: `🔄 Port 3 leitura reativada`,
+          type: 'info'
+        }]);
+      }
+    }
+
+    if (port4) {
+      const portData4 = this.serialService.serialPorts.get(port4);
+      this.logMessages.update(logs => [...logs, {
+        timestamp: new Date().toLocaleTimeString(),
+        message: `📊 Port 4 Status: ${portData4 ? `Ativa=${portData4.isReading}` : 'DESCONECTADA'}`,
+        type: 'info'
+      }]);
+      
+      // Reativar leitura se necessário
+      if (portData4 && !portData4.isReading) {
+        portData4.isReading = true;
+        this.serialService.startReading(port4);
+        this.logMessages.update(logs => [...logs, {
+          timestamp: new Date().toLocaleTimeString(),
+          message: `🔄 Port 4 leitura reativada`,
+          type: 'info'
+        }]);
+      }
     }
   }
 
