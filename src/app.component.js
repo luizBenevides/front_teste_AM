@@ -873,7 +873,7 @@ export const AppComponent = Component({
         await this.aguardarMovimentoConcluido();
 
         // ===== 2. Pressionar =====
-        await this.serialService.sendCommand("P_2", false, port2);
+        await this.serialService.sendCommand("P_1", false, port2);
         this.logMessages.update(logs => [...logs, { 
           timestamp: new Date().toLocaleTimeString(),
           message: `👆 [${i}/${repeats}] Pressionando botão...`,
@@ -988,7 +988,7 @@ export const AppComponent = Component({
         await this.aguardarMovimentoConcluido();
 
         // ===== 2. Pressionar =====
-        await this.serialService.sendCommand("P_2", false, port2);
+        await this.serialService.sendCommand("P_1", false, port2);
         this.logMessages.update(logs => [...logs, { 
           timestamp: new Date().toLocaleTimeString(),
           message: `👆 [${i}/${repeats}] Pressionando botão...`,
@@ -1205,7 +1205,7 @@ export const AppComponent = Component({
           await this.aguardarMovimentoConcluido(pos.x, pos.y);
 
           // ===== 2. Pressionar =====
-          await this.serialService.sendCommand("P_2", false, port2);
+          await this.serialService.sendCommand("P_1", false, port2);
           this.logMessages.update(logs => [...logs, { 
             timestamp: new Date().toLocaleTimeString(),
             message: `👆 [${cycle}/${repeats}] P${i+1}: Pressionando botão...`,
@@ -1532,7 +1532,7 @@ export const AppComponent = Component({
       }
       
       // Pressionar
-      await this.serialService.sendCommand('P_2', false, port2);
+      await this.serialService.sendCommand('P_1', false, port2);
       this.logMessages.update(logs => [...logs, {
         timestamp: new Date().toLocaleTimeString(),
         message: `👆 [${cycle}/${totalCycles}] Berço 1 - P${i+1}: Pressionando`,
@@ -1665,7 +1665,7 @@ export const AppComponent = Component({
       }
       
       // Pressionar
-      await this.serialService.sendCommand('P_2', false, port2);
+      await this.serialService.sendCommand('P_1', false, port2);
       this.logMessages.update(logs => [...logs, {
         timestamp: new Date().toLocaleTimeString(),
         message: `👆 [${cycle}/${totalCycles}] Berço 2 - P${i+1}: Pressionando`,
@@ -1972,7 +1972,7 @@ export const AppComponent = Component({
     await this.delay(3000);  // Aumentado de 1200 para 3000ms
     
     if (!this.isRunningSequence()) return;
-    await this.serialService.sendCommand('P_2', false);
+    await this.serialService.sendCommand('P_1', false);
     await this.delay(2500);  // Aumentado de 1000 para 2500ms
     
     if (this.isRunningSequence()) {
@@ -2148,7 +2148,7 @@ export const AppComponent = Component({
           // ---- PRESSÃO (PORTA 2) ----
           const port2 = this.getPort2Id();
           if (port2) {
-            await this.serialService.sendCommand('P_2', false, port2);
+            await this.serialService.sendCommand('P_1', false, port2);
             this.logMessages.update(logs => [
               ...logs,
               {
@@ -2226,7 +2226,7 @@ export const AppComponent = Component({
       // Pressão
       const port2 = this.getPort2Id();
       if (port2) {
-        await this.serialService.sendCommand('P_2', false, port2);
+        await this.serialService.sendCommand('P_1', false, port2);
         this.logMessages.update(logs => [
           ...logs,
           {
@@ -2401,7 +2401,7 @@ export const AppComponent = Component({
           const port2 = this.getPort2Id();
           if (port2) {
             // Pressiona
-            await this.serialService.sendCommand('P_2', false, port2);
+            await this.serialService.sendCommand('P_1', false, port2);
             this.logMessages.update(logs => [...logs, {
               timestamp: new Date().toLocaleTimeString(),
               message: `👆 [${cycle}/${cycles}] Pressionando botão...`,
@@ -2514,7 +2514,7 @@ export const AppComponent = Component({
         if (this.loopCancelRequested()) break;
 
         // ===== PRESSIONAR ===== (PORTA 2)
-        resposta = await this.serialService.sendCommand("P_2", false, port2);
+        resposta = await this.serialService.sendCommand("P_1", false, port2);
         if (this._detectaAlarm(resposta)) return resposta;
 
         await this.delay(1000);
@@ -3038,7 +3038,7 @@ export const AppComponent = Component({
 
         if (port2) {
           // Pressiona
-          await this.serialService.sendCommand('P_2', false, port2);
+          await this.serialService.sendCommand('P_1', false, port2);
           this.logMessages.update(logs => [
             ...logs,
             {
