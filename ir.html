@@ -115,11 +115,144 @@
     let getNanoLogs = []; // Array específico para logs GET Nano
     let autoSaveEnabled = true; // Salvamento automático ativado
     let pendingGetCommand = null; // Para rastrear comando GET pendente
+    
+    // WebSocket para comunicação com API
+    let apiWebSocket = null;
+    let apiConnected = false;
 
     // Verificar suporte
     if (!('serial' in navigator)) {
       addLog('❌ Web Serial API não suportada neste browser', 'error');
     }
+
+    // Conectar WebSocket com API
+    function connectToAPI() {
+      try {
+        apiWebSocket = new WebSocket('ws://localhost:8081');
+        
+        apiWebSocket.onopen = () => {
+          apiConnected = true;
+          addLog('🔗 Conectado com API via WebSocket');
+          sendConnectionStatus();
+        };
+        
+        apiWebSocket.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            handleAPIMessage(data);
+          } catch (error) {
+            addLog(`❌ Erro ao processar mensagem da API: ${error.message}`, 'error');
+          }
+        };
+        
+        apiWebSocket.onclose = () => {
+          apiConnected = false;
+          addLog('🔗 Conexão com API perdida', 'warn');
+          // Tentar reconectar em 5 segundos
+          setTimeout(connectToAPI, 5000);
+        };
+        
+        apiWebSocket.onerror = (error) => {
+          addLog('❌ Erro na conexão WebSocket com API', 'error');
+        };
+        
+      } catch (error) {
+        addLog('❌ Falha ao conectar WebSocket: ' + error.message, 'error');
+      }
+    }
+
+    // Processar mensagens da API
+    function handleAPIMessage(data) {
+      addLog(`📨 API: ${data.type} para ${data.nano}`);
+      
+      if (data.type === 'execute_get') {
+        // API solicitou execução de GET
+        const { nano, requestId, payload } = data;
+        addLog(`🔄 Executando GET para ${nano} via API (ID: ${requestId})`);
+        
+        if (nano === 'nano1') {
+          executeAPIGetCommand('port3', 'Nano 1', requestId);
+        } else if (nano === 'nano2') {
+          executeAPIGetCommand('port4', 'Nano 2', requestId);
+        }
+      }
+    }
+
+    // Executar comando GET solicitado pela API
+    async function executeAPIGetCommand(portKey, portName, requestId) {
+      const portData = serialPorts.get(portKey);
+      
+      if (!portData) {
+        sendAPIResponse(portKey === 'port3' ? 'nano1' : 'nano2', null, requestId, 'Arduino não conectado');
+        return;
+      }
+
+      try {
+        const command = 'GET\n';
+        const encoder = new TextEncoder();
+        await portData.writer.write(encoder.encode(command));
+        
+        addLog(`📡 → ${portName}: GET (API Request)`, 'send');
+        
+        // Aguardar resposta e enviar para API
+        setTimeout(() => {
+          const recentLogs = getNanoLogs.filter(log => 
+            log.message.includes(portName) && 
+            log.type === 'receive' &&
+            new Date(log.timestamp) > new Date(Date.now() - 3000)
+          );
+          
+          const responseData = recentLogs.map(log => log.message.replace(`📡 ← ${portName}: `, '')).join('\n');
+          sendAPIResponse(portKey === 'port3' ? 'nano1' : 'nano2', responseData, requestId);
+          
+        }, 2000);
+        
+      } catch (error) {
+        addLog(`❌ Erro ao enviar GET para ${portName} via API: ${error.message}`, 'error');
+        sendAPIResponse(portKey === 'port3' ? 'nano1' : 'nano2', null, requestId, error.message);
+      }
+    }
+
+    // Enviar resposta para API
+    function sendAPIResponse(nano, response, requestId, error = null) {
+      if (!apiConnected || !apiWebSocket) return;
+      
+      const message = {
+        type: 'get_response',
+        nano: nano,
+        response: response,
+        timestamp: new Date().toISOString(),
+        requestId: requestId,
+        error: error
+      };
+      
+      apiWebSocket.send(JSON.stringify(message));
+      
+      if (error) {
+        addLog(`📨 Erro enviado para API: ${error}`, 'error');
+      } else {
+        addLog(`📨 Resposta enviada para API: ${nano}`, 'info');
+      }
+    }
+
+    // Enviar status de conexão para API
+    function sendConnectionStatus() {
+      if (!apiConnected || !apiWebSocket) return;
+      
+      const message = {
+        type: 'connection_status',
+        nano1Connected: serialPorts.has('port3'),
+        nano2Connected: serialPorts.has('port4'),
+        timestamp: new Date().toISOString()
+      };
+      
+      apiWebSocket.send(JSON.stringify(message));
+    }
+
+    // Inicializar conexão WebSocket ao carregar a página
+    window.addEventListener('load', () => {
+      setTimeout(connectToAPI, 1000);
+    });
 
     // Funções de logging
     function addLog(message, type = 'info') {
@@ -319,6 +452,9 @@
         // Atualizar UI
         updatePortUI(portKey, portName, true);
         
+        // Notificar API sobre mudança de status
+        sendConnectionStatus();
+        
         addLog(`✅ ${portName} conectado e resetado com sucesso`);
         
       } catch (error) {
@@ -353,6 +489,10 @@
         portConnections.delete(portKey);
         
         updatePortUI(portKey, portName, false);
+        
+        // Notificar API sobre mudança de status
+        sendConnectionStatus();
+        
         addLog(`📡 ${portName} desconectado`);
         
       } catch (error) {
