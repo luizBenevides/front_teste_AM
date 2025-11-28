@@ -311,4 +311,9 @@ export class SerialService {
       return false;
     }
   }
+
+  // Função para limpar logs
+  clearLogs() {
+    this.logMessages.set([]);
+  }
 }

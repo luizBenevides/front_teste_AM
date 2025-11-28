@@ -445,6 +445,19 @@ export const AppComponent = Component({
     <div class="lg:col-span-1">
       <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700 h-full flex flex-col">
         <h2 class="text-lg font-semibold text-slate-300 border-b border-slate-600 pb-2 mb-4 flex-shrink-0">Communication Log</h2>
+        
+        <div class="flex flex-wrap gap-2 mb-4 flex-shrink-0">
+          <button (click)="clearLogs()" class="px-3 py-1.5 bg-gray-600 hover:bg-gray-500 rounded text-xs font-medium transition-colors">
+            🗑️ Limpar
+          </button>
+          <button (click)="saveLogsToJSON()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded text-xs font-medium transition-colors">
+            💾 Salvar JSON
+          </button>
+          <button (click)="exportCommandResponses()" class="px-3 py-1.5 bg-green-600 hover:bg-green-500 rounded text-xs font-medium transition-colors">
+            📋 Exportar Respostas
+          </button>
+        </div>
+        
         <div class="bg-slate-900/70 rounded-md p-3 flex-grow overflow-y-auto h-96 font-mono text-sm space-y-1">
           <div *ngFor="let log of logMessages()" 
                [ngClass]="{
@@ -2651,5 +2664,86 @@ export const AppComponent = Component({
     this.currentCommandIndex.set(0);
     this.g90ButtonStatuses.set(this.g90Commands().map(() => 'idle'));
     this.logMessages.update(logs => [...logs, { timestamp: new Date().toLocaleTimeString(), message: 'Sequência reiniciada.', type: 'info' }]);
+  }
+
+  // Funções para salvar logs
+  clearLogs() {
+    this.serialService.clearLogs();
+  }
+
+  saveLogsToJSON() {
+    const logs = this.logMessages();
+    if (logs.length === 0) {
+      alert('Nenhum log para salvar!');
+      return;
+    }
+
+    const logData = {
+      exportDate: new Date().toISOString(),
+      totalLogs: logs.length,
+      logs: logs.map(log => ({
+        ...log,
+        fullTimestamp: new Date().toISOString()
+      }))
+    };
+
+    this.downloadJSON(logData, `hardware_logs_${this.getTimestampString()}.json`);
+    this.logMessages.update(logs => [...logs, { 
+      timestamp: new Date().toLocaleTimeString(), 
+      message: `💾 ${logs.length} logs salvos em JSON`, 
+      type: 'info' 
+    }]);
+  }
+
+  exportCommandResponses() {
+    const logs = this.logMessages();
+    const responses = logs.filter(log => log.type === 'receive');
+    
+    if (responses.length === 0) {
+      alert('Nenhuma resposta para exportar!');
+      return;
+    }
+
+    const responseData = {
+      exportDate: new Date().toISOString(),
+      totalResponses: responses.length,
+      responses: responses.map(response => ({
+        ...response,
+        fullTimestamp: new Date().toISOString()
+      }))
+    };
+
+    this.downloadJSON(responseData, `hardware_responses_${this.getTimestampString()}.json`);
+    this.logMessages.update(logs => [...logs, { 
+      timestamp: new Date().toLocaleTimeString(), 
+      message: `📋 ${responses.length} respostas exportadas`, 
+      type: 'info' 
+    }]);
+  }
+
+  // Função auxiliar para download de JSON
+  downloadJSON(data, filename) {
+    const jsonString = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // Função para gerar timestamp para nome do arquivo
+  getTimestampString() {
+    const now = new Date();
+    return now.getFullYear() + 
+           String(now.getMonth() + 1).padStart(2, '0') + 
+           String(now.getDate()).padStart(2, '0') + '_' +
+           String(now.getHours()).padStart(2, '0') + 
+           String(now.getMinutes()).padStart(2, '0') + 
+           String(now.getSeconds()).padStart(2, '0');
   }
 });

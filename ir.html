@@ -89,6 +89,19 @@
     <!-- Logs -->
     <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
       <h3 class="text-lg font-semibold text-slate-300 border-b border-slate-600 pb-2 mb-4">Logs de Comunicação</h3>
+      
+      <div class="flex gap-4 mb-4">
+        <button onclick="clearLogs()" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg text-sm transition-colors">
+          🗑️ Limpar Logs
+        </button>
+        <button onclick="toggleAutoSave()" id="autoSaveBtn" class="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg text-sm transition-colors">
+          ✅ Auto-Save ON
+        </button>
+        <button onclick="saveGetNanoLogs()" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-sm transition-colors">
+          📡 Salvar Manual
+        </button>
+      </div>
+      
       <div id="logContainer" class="bg-slate-900/50 p-3 rounded-lg max-h-96 overflow-y-auto font-mono text-sm space-y-1">
         <div class="text-slate-400">📡 IR Controller iniciado - Pronto para conectar Arduino Nanos</div>
       </div>
@@ -99,6 +112,9 @@
     // Estado global
     let serialPorts = new Map();
     let portConnections = new Map();
+    let getNanoLogs = []; // Array específico para logs GET Nano
+    let autoSaveEnabled = true; // Salvamento automático ativado
+    let pendingGetCommand = null; // Para rastrear comando GET pendente
 
     // Verificar suporte
     if (!('serial' in navigator)) {
@@ -109,13 +125,51 @@
     function addLog(message, type = 'info') {
       const container = document.getElementById('logContainer');
       const timestamp = new Date().toLocaleTimeString();
+      const fullTimestamp = new Date().toISOString();
       
-      const logEntry = document.createElement('div');
-      logEntry.className = getLogClass(type);
-      logEntry.textContent = `${timestamp} - ${message}`;
+      // Se for comando GET enviado ou resposta recebida de GET, armazenar
+      if ((type === 'send' && message.includes('GET')) || 
+          (type === 'receive' && message.includes('← Nano'))) {
+        
+        const getNanoEntry = {
+          timestamp: fullTimestamp,
+          displayTime: timestamp,
+          message: message,
+          type: type,
+          isGetRelated: true
+        };
+        getNanoLogs.push(getNanoEntry);
+
+        // Se for comando GET enviado, marcar como pendente
+        if (type === 'send' && message.includes('GET')) {
+          pendingGetCommand = {
+            timestamp: fullTimestamp,
+            nano: message.includes('Nano 1') ? 'Nano1' : 'Nano2'
+          };
+        }
+
+        // Se for resposta recebida e há comando pendente, salvar automaticamente
+        if (type === 'receive' && pendingGetCommand && autoSaveEnabled) {
+          // Aguardar um pouco para capturar todas as linhas da resposta
+          setTimeout(() => {
+            autoSaveGetNanoLogs();
+            pendingGetCommand = null;
+          }, 1000);
+        }
+      }
       
-      container.appendChild(logEntry);
+      // Mostrar no UI
+      const logDiv = document.createElement('div');
+      logDiv.className = getLogClass(type);
+      logDiv.textContent = `${timestamp} - ${message}`;
+      
+      container.appendChild(logDiv);
       container.scrollTop = container.scrollHeight;
+      
+      // Limitar logs na interface (manter últimos 200)
+      if (container.children.length > 200) {
+        container.removeChild(container.firstChild);
+      }
     }
 
     function getLogClass(type) {
@@ -130,6 +184,103 @@
 
     function clearLogs() {
       document.getElementById('logContainer').innerHTML = '<div class="text-slate-400">📡 Logs limpos</div>';
+      getNanoLogs = [];
+      pendingGetCommand = null;
+      addLog('📡 Logs limpos - Array GET Nano resetado');
+    }
+
+    // Função para alternar auto-save
+    function toggleAutoSave() {
+      autoSaveEnabled = !autoSaveEnabled;
+      const btn = document.getElementById('autoSaveBtn');
+      
+      if (autoSaveEnabled) {
+        btn.textContent = '✅ Auto-Save ON';
+        btn.className = 'px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg text-sm transition-colors';
+        addLog('🟢 Salvamento automático ATIVADO');
+      } else {
+        btn.textContent = '❌ Auto-Save OFF';
+        btn.className = 'px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-sm transition-colors';
+        addLog('🔴 Salvamento automático DESATIVADO');
+      }
+    }
+
+    // Função para salvamento automático
+    function autoSaveGetNanoLogs() {
+      if (getNanoLogs.length === 0) return;
+
+      const recentLogs = getNanoLogs.slice(-10); // Pegar últimos 10 logs relacionados ao GET atual
+      
+      const getNanoData = {
+        exportDate: new Date().toISOString(),
+        description: "Logs automáticos do comando GET para Arduino Nano",
+        autoSave: true,
+        totalGetNanoLogs: recentLogs.length,
+        getNanoLogs: recentLogs
+      };
+
+      const filename = `get_nano_auto_${getTimestampString()}.json`;
+      downloadJSON(getNanoData, filename);
+      
+      addLog(`💾 Auto-save: ${recentLogs.length} logs salvos automaticamente`);
+      addLog(`📁 Arquivo: ${filename}`);
+    }
+
+    // Função para salvar apenas logs GET Nano (manual)
+    function saveGetNanoLogs() {
+      if (getNanoLogs.length === 0) {
+        alert('Nenhum log GET Nano para salvar!');
+        return;
+      }
+
+      const getNanoData = {
+        exportDate: new Date().toISOString(),
+        description: "Logs manuais dos comandos GET para Arduino Nanos",
+        autoSave: false,
+        totalGetNanoLogs: getNanoLogs.length,
+        getNanoLogs: getNanoLogs
+      };
+
+      const filename = `get_nano_manual_${getTimestampString()}.json`;
+      downloadJSON(getNanoData, filename);
+      
+      addLog(`📡 ${getNanoLogs.length} logs GET Nano salvos manualmente`);
+      addLog(`📁 Arquivo: ${filename}`);
+    }
+
+    // Função para mostrar instruções de como mover logs
+    function showMoveInstructions() {
+      addLog('📁 INSTRUÇÕES PARA MOVER LOGS:');
+      addLog('1️⃣ Abra terminal no diretório do projeto');
+      addLog('2️⃣ Execute: ./move_logs.sh');
+      addLog('3️⃣ O script moverá automaticamente de Downloads para logs/');
+      addLog('💡 Ou mova manualmente da pasta Downloads para /home/elgin/front_teste_AM/logs/');
+    }
+
+    // Função auxiliar para download de JSON
+    function downloadJSON(data, filename) {
+      const jsonString = JSON.stringify(data, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // Função para gerar timestamp para nome do arquivo
+    function getTimestampString() {
+      const now = new Date();
+      return now.getFullYear() + 
+             String(now.getMonth() + 1).padStart(2, '0') + 
+             String(now.getDate()).padStart(2, '0') + '_' +
+             String(now.getHours()).padStart(2, '0') + 
+             String(now.getMinutes()).padStart(2, '0') + 
+             String(now.getSeconds()).padStart(2, '0');
     }
 
     // Funções de conexão
