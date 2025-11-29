@@ -5,10 +5,11 @@
   "main": "index.html",
   "type": "module",
   "scripts": {
-    "start": "ng serve --ssl true --ssl-key localhost-key.pem --ssl-cert localhost.pem",
+    "start": "serve . --single",
     "dev": "serve . --single",
     "build": "rollup -c",
-    "deploy": "npm run build && npx serve ."
+    "deploy": "npm run build && npx serve .",
+    "api": "node api-server.js"
   },
   "dependencies": {
     "@angular/common": "^21.0.0",
@@ -16,7 +17,14 @@
     "@angular/core": "^21.0.0",
     "@angular/forms": "^21.0.0",
     "@angular/platform-browser": "^21.0.0",
-    "rxjs": "^7.8.2"
+    "axios": "^1.13.2",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "fs-extra": "^11.3.2",
+    "multer": "^2.0.2",
+    "rxjs": "^7.8.2",
+    "uuid": "^13.0.0",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.7",

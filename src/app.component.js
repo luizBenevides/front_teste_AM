@@ -8,7 +8,12 @@ export const AppComponent = Component({
   template: `<div class="container mx-auto p-4 lg:p-6 max-w-7xl space-y-4">
   <header class="flex justify-between items-center mb-4">
     <h1 class="text-3xl font-bold text-cyan-400">Hardware Controller</h1>
-    <div class="text-sm text-slate-400">Web Serial API Interface</div>
+    <div class="flex items-center gap-4">
+      <a href="ir.html" target="_blank" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-sm font-medium transition-colors">
+        📡 IR Controller
+      </a>
+      <div class="text-sm text-slate-400">Web Serial API Interface</div>
+    </div>
   </header>
 
   <div *ngIf="!isSupported()" class="bg-red-900/50 border border-red-700 text-red-300 px-4 py-3 rounded-lg" role="alert">
@@ -208,6 +213,9 @@ export const AppComponent = Component({
                 </button>
                 <button (click)="sendK6_0()" [disabled]="!isConnected()" class="control-btn bg-purple-600 hover:bg-purple-500">
                   📥 K6_0 DESATIVAR PILHA 2
+                </button>
+                <button (click)="sendB1_1()" [disabled]="!isConnected()" class="control-btn bg-pink-600 hover:bg-pink-500">
+                  🔌 B1_1 ALIMENTAÇÃO BERÇO 1
                 </button>
               </div>
               
@@ -437,6 +445,19 @@ export const AppComponent = Component({
     <div class="lg:col-span-1">
       <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700 h-full flex flex-col">
         <h2 class="text-lg font-semibold text-slate-300 border-b border-slate-600 pb-2 mb-4 flex-shrink-0">Communication Log</h2>
+        
+        <div class="flex flex-wrap gap-2 mb-4 flex-shrink-0">
+          <button (click)="clearLogs()" class="px-3 py-1.5 bg-gray-600 hover:bg-gray-500 rounded text-xs font-medium transition-colors">
+            🗑️ Limpar
+          </button>
+          <button (click)="saveLogsToJSON()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded text-xs font-medium transition-colors">
+            💾 Salvar JSON
+          </button>
+          <button (click)="exportCommandResponses()" class="px-3 py-1.5 bg-green-600 hover:bg-green-500 rounded text-xs font-medium transition-colors">
+            📋 Exportar Respostas
+          </button>
+        </div>
+        
         <div class="bg-slate-900/70 rounded-md p-3 flex-grow overflow-y-auto h-96 font-mono text-sm space-y-1">
           <div *ngFor="let log of logMessages()" 
                [ngClass]="{
@@ -725,7 +746,7 @@ export const AppComponent = Component({
         await this.aguardarMovimentoConcluido();
 
         // ===== 2. Pressionar =====
-        await this.serialService.sendCommand("P_2", false, port2);
+        await this.serialService.sendCommand("P_1", false, port2);
         this.logMessages.update(logs => [...logs, { 
           timestamp: new Date().toLocaleTimeString(),
           message: `👆 [${i}/${repeats}] Pressionando botão...`,
@@ -840,7 +861,7 @@ export const AppComponent = Component({
         await this.aguardarMovimentoConcluido();
 
         // ===== 2. Pressionar =====
-        await this.serialService.sendCommand("P_2", false, port2);
+        await this.serialService.sendCommand("P_1", false, port2);
         this.logMessages.update(logs => [...logs, { 
           timestamp: new Date().toLocaleTimeString(),
           message: `👆 [${i}/${repeats}] Pressionando botão...`,
@@ -1057,7 +1078,7 @@ export const AppComponent = Component({
           await this.aguardarMovimentoConcluido(pos.x, pos.y);
 
           // ===== 2. Pressionar =====
-          await this.serialService.sendCommand("P_2", false, port2);
+          await this.serialService.sendCommand("P_1", false, port2);
           this.logMessages.update(logs => [...logs, { 
             timestamp: new Date().toLocaleTimeString(),
             message: `👆 [${cycle}/${repeats}] P${i+1}: Pressionando botão...`,
@@ -1384,7 +1405,7 @@ export const AppComponent = Component({
       }
       
       // Pressionar
-      await this.serialService.sendCommand('P_2', false, port2);
+      await this.serialService.sendCommand('P_1', false, port2);
       this.logMessages.update(logs => [...logs, {
         timestamp: new Date().toLocaleTimeString(),
         message: `👆 [${cycle}/${totalCycles}] Berço 1 - P${i+1}: Pressionando`,
@@ -1517,7 +1538,7 @@ export const AppComponent = Component({
       }
       
       // Pressionar
-      await this.serialService.sendCommand('P_2', false, port2);
+      await this.serialService.sendCommand('P_1', false, port2);
       this.logMessages.update(logs => [...logs, {
         timestamp: new Date().toLocaleTimeString(),
         message: `👆 [${cycle}/${totalCycles}] Berço 2 - P${i+1}: Pressionando`,
@@ -1791,6 +1812,23 @@ export const AppComponent = Component({
     
     await this.serialService.sendCommand('RST', false, port2);
   }
+
+  // B1_1 - ATIVAR ALIMENTAÇÃO DO BERÇO 1
+  async sendB1_1() {
+    const port2 = this.getPort2Id();
+    if (!port2) {
+      alert("Porta 2 não conectada!");
+      return;
+    }
+    
+    this.logMessages.update(logs => [...logs, { 
+      timestamp: new Date().toLocaleTimeString(),
+      message: "🔌 Enviando B1_1 (ATIVAR ALIMENTAÇÃO BERÇO 1)...",
+      type: "info"
+    }]);
+    
+    await this.serialService.sendCommand('B1_1', false, port2);
+  }
   
   sendSingleG90(command) {
     this.serialService.sendCommand(command);
@@ -1807,7 +1845,7 @@ export const AppComponent = Component({
     await this.delay(3000);  // Aumentado de 1200 para 3000ms
     
     if (!this.isRunningSequence()) return;
-    await this.serialService.sendCommand('P_2', false);
+    await this.serialService.sendCommand('P_1', false);
     await this.delay(2500);  // Aumentado de 1000 para 2500ms
     
     if (this.isRunningSequence()) {
@@ -1837,7 +1875,7 @@ export const AppComponent = Component({
       // Apenas pressiona e solta, sem movimento
       if (this.getPort1Id()) {
         // Pressiona
-        await this.serialService.sendCommand('P_2', false, this.getPort2Id());
+        await this.serialService.sendCommand('P_1', false, this.getPort2Id());
         this.logMessages.update(logs => [...logs, { 
           timestamp: new Date().toLocaleTimeString(), 
           message: '👆 Pressionando botão...', 
@@ -1983,7 +2021,7 @@ export const AppComponent = Component({
           // ---- PRESSÃO (PORTA 2) ----
           const port2 = this.getPort2Id();
           if (port2) {
-            await this.serialService.sendCommand('P_2', false, port2);
+            await this.serialService.sendCommand('P_1', false, port2);
             this.logMessages.update(logs => [
               ...logs,
               {
@@ -2061,7 +2099,7 @@ export const AppComponent = Component({
       // Pressão
       const port2 = this.getPort2Id();
       if (port2) {
-        await this.serialService.sendCommand('P_2', false, port2);
+        await this.serialService.sendCommand('P_1', false, port2);
         this.logMessages.update(logs => [
           ...logs,
           {
@@ -2236,7 +2274,7 @@ export const AppComponent = Component({
           const port2 = this.getPort2Id();
           if (port2) {
             // Pressiona
-            await this.serialService.sendCommand('P_2', false, port2);
+            await this.serialService.sendCommand('P_1', false, port2);
             this.logMessages.update(logs => [...logs, {
               timestamp: new Date().toLocaleTimeString(),
               message: `👆 [${cycle}/${cycles}] Pressionando botão...`,
@@ -2349,7 +2387,7 @@ export const AppComponent = Component({
         if (this.loopCancelRequested()) break;
 
         // ===== PRESSIONAR ===== (PORTA 2)
-        resposta = await this.serialService.sendCommand("P_2", false, port2);
+        resposta = await this.serialService.sendCommand("P_1", false, port2);
         if (this._detectaAlarm(resposta)) return resposta;
 
         await this.delay(1000);
@@ -2486,7 +2524,7 @@ export const AppComponent = Component({
 
         if (port2) {
           // Pressiona
-          await this.serialService.sendCommand('P_2', false, port2);
+          await this.serialService.sendCommand('P_1', false, port2);
           this.logMessages.update(logs => [
             ...logs,
             {
@@ -2626,5 +2664,86 @@ export const AppComponent = Component({
     this.currentCommandIndex.set(0);
     this.g90ButtonStatuses.set(this.g90Commands().map(() => 'idle'));
     this.logMessages.update(logs => [...logs, { timestamp: new Date().toLocaleTimeString(), message: 'Sequência reiniciada.', type: 'info' }]);
+  }
+
+  // Funções para salvar logs
+  clearLogs() {
+    this.serialService.clearLogs();
+  }
+
+  saveLogsToJSON() {
+    const logs = this.logMessages();
+    if (logs.length === 0) {
+      alert('Nenhum log para salvar!');
+      return;
+    }
+
+    const logData = {
+      exportDate: new Date().toISOString(),
+      totalLogs: logs.length,
+      logs: logs.map(log => ({
+        ...log,
+        fullTimestamp: new Date().toISOString()
+      }))
+    };
+
+    this.downloadJSON(logData, `hardware_logs_${this.getTimestampString()}.json`);
+    this.logMessages.update(logs => [...logs, { 
+      timestamp: new Date().toLocaleTimeString(), 
+      message: `💾 ${logs.length} logs salvos em JSON`, 
+      type: 'info' 
+    }]);
+  }
+
+  exportCommandResponses() {
+    const logs = this.logMessages();
+    const responses = logs.filter(log => log.type === 'receive');
+    
+    if (responses.length === 0) {
+      alert('Nenhuma resposta para exportar!');
+      return;
+    }
+
+    const responseData = {
+      exportDate: new Date().toISOString(),
+      totalResponses: responses.length,
+      responses: responses.map(response => ({
+        ...response,
+        fullTimestamp: new Date().toISOString()
+      }))
+    };
+
+    this.downloadJSON(responseData, `hardware_responses_${this.getTimestampString()}.json`);
+    this.logMessages.update(logs => [...logs, { 
+      timestamp: new Date().toLocaleTimeString(), 
+      message: `📋 ${responses.length} respostas exportadas`, 
+      type: 'info' 
+    }]);
+  }
+
+  // Função auxiliar para download de JSON
+  downloadJSON(data, filename) {
+    const jsonString = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // Função para gerar timestamp para nome do arquivo
+  getTimestampString() {
+    const now = new Date();
+    return now.getFullYear() + 
+           String(now.getMonth() + 1).padStart(2, '0') + 
+           String(now.getDate()).padStart(2, '0') + '_' +
+           String(now.getHours()).padStart(2, '0') + 
+           String(now.getMinutes()).padStart(2, '0') + 
+           String(now.getSeconds()).padStart(2, '0');
   }
 });

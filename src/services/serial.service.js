@@ -280,4 +280,40 @@ export class SerialService {
   async disconnect() {
     await this.disconnectAll();
   }
+
+  // Reset Arduino Nano usando DTR e RTS (equivalente ao C#)
+  async resetArduinoNano(portId) {
+    const portData = this.serialPorts.get(portId);
+    if (!portData?.port) {
+      this.addLogMessage(`❌ Porta ${portId} não encontrada para reset`, 'error');
+      return false;
+    }
+
+    try {
+      const port = portData.port;
+      
+      this.addLogMessage(`🔄 Resetando Arduino Nano (${portId})...`, 'info');
+      
+      // Ativar DTR e RTS (equivalente ao C# DtrEnable = true, RtsEnable = true)
+      await port.setSignals({ dataTerminalReady: true, requestToSend: true });
+      
+      // Aguardar 100ms
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Desativar DTR e RTS (equivalente ao C# DtrEnable = false, RtsEnable = false)  
+      await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+      
+      this.addLogMessage(`✅ Reset do Arduino Nano concluído (${portId})`, 'info');
+      return true;
+      
+    } catch (error) {
+      this.addLogMessage(`❌ Erro ao resetar Arduino Nano (${portId}): ${error.message}`, 'error');
+      return false;
+    }
+  }
+
+  // Função para limpar logs
+  clearLogs() {
+    this.logMessages.set([]);
+  }
 }

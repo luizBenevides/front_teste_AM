@@ -49,8 +49,15 @@ npm run build
 
 # Iniciar servidor
 echo "🌐 Iniciando servidor..."
-echo "📍 Acesse: http://localhost:3000"
+echo "📍 Interface Principal: http://localhost:3000"
+echo "📡 Interface IR: http://localhost:3000/ir.html"
 echo "🔧 Para parar: Ctrl+C"
+echo ""
+echo "💡 Para usar sistema AUTO GET Nano:"
+echo "   1. Abra outro terminal"
+echo "   2. Execute: node api-server.js (porta 3001)"
+echo "   3. Conecte Arduino Nanos na interface IR"
+echo "   4. Use: python3 auto_trigger.py test"
 echo ""
 
 npm start

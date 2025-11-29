@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IR Controller - Arduino Nanos</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-white min-h-screen">
+  <div class="container mx-auto p-4 lg:p-6 max-w-7xl space-y-4">
+    <header class="flex justify-between items-center mb-4">
+      <h1 class="text-3xl font-bold text-purple-400">📡 IR Controller</h1>
+      <div class="flex items-center gap-4">
+        <button onclick="window.close()" class="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-sm font-medium transition-colors">
+          ✕ Fechar
+        </button>
+        <div class="text-sm text-slate-400">Arduino Nanos Interface</div>
+      </div>
+    </header>
+
+    <!-- Configuração das Portas IR -->
+    <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+      <h2 class="text-lg font-semibold text-slate-300 border-b border-slate-600 pb-2 mb-4">Configuração dos Arduino Nanos</h2>
+      
+      <!-- Nano 1 (Porta 3) -->
+      <div class="flex flex-wrap items-center gap-4 mb-4">
+        <label class="text-slate-400 font-medium">Arduino Nano 1:</label>
+        
+        <button id="connectPort3" onclick="connectPort3()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium transition-colors">
+          🔌 Conectar Nano 1
+        </button>
+        
+        <button id="disconnectPort3" onclick="disconnectPort3()" class="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg font-medium transition-colors" style="display: none;">
+          🔌 Desconectar Nano 1
+        </button>
+        
+        <span id="statusPort3" class="text-sm text-slate-500">Desconectado</span>
+      </div>
+
+      <!-- Nano 2 (Porta 4) -->
+      <div class="flex flex-wrap items-center gap-4 mb-4">
+        <label class="text-slate-400 font-medium">Arduino Nano 2:</label>
+        
+        <button id="connectPort4" onclick="connectPort4()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium transition-colors">
+          🔌 Conectar Nano 2
+        </button>
+        
+        <button id="disconnectPort4" onclick="disconnectPort4()" class="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg font-medium transition-colors" style="display: none;">
+          🔌 Desconectar Nano 2
+        </button>
+        
+        <span id="statusPort4" class="text-sm text-slate-500">Desconectado</span>
+      </div>
+    </div>
+
+    <!-- Comandos IR -->
+    <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+      <h3 class="text-lg font-semibold text-slate-300 border-b border-slate-600 pb-2 mb-4">Comandos IR</h3>
+      
+      <div class="flex flex-wrap gap-4 mb-4">
+        <button onclick="sendGetCommand('port3')" class="px-6 py-3 bg-purple-600 hover:bg-purple-500 rounded-lg font-medium transition-colors">
+          📡 GET Nano 1
+        </button>
+        
+        <button onclick="sendGetCommand('port4')" class="px-6 py-3 bg-purple-600 hover:bg-purple-500 rounded-lg font-medium transition-colors">
+          📡 GET Nano 2
+        </button>
+        
+        <button onclick="testBothPorts()" class="px-6 py-3 bg-green-600 hover:bg-green-500 rounded-lg font-medium transition-colors">
+          🔄 Testar Ambos
+        </button>
+      </div>
+
+      <div class="flex flex-wrap gap-4">
+        <button onclick="resetNano('port3')" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 rounded-lg text-sm transition-colors">
+          🔄 Reset Nano 1
+        </button>
+        
+        <button onclick="resetNano('port4')" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 rounded-lg text-sm transition-colors">
+          🔄 Reset Nano 2
+        </button>
+        
+        <button onclick="clearLogs()" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg text-sm transition-colors">
+          🗑️ Limpar Logs
+        </button>
+      </div>
+    </div>
+
+    <!-- Logs -->
+    <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+      <h3 class="text-lg font-semibold text-slate-300 border-b border-slate-600 pb-2 mb-4">Logs de Comunicação</h3>
+      
+      <div class="flex gap-4 mb-4">
+        <button onclick="clearLogs()" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg text-sm transition-colors">
+          🗑️ Limpar Logs
+        </button>
+        <button onclick="toggleAutoSave()" id="autoSaveBtn" class="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg text-sm transition-colors">
+          ✅ Auto-Save ON
+        </button>
+        <button onclick="saveGetNanoLogs()" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-sm transition-colors">
+          📡 Salvar Manual
+        </button>
+      </div>
+      
+      <div id="logContainer" class="bg-slate-900/50 p-3 rounded-lg max-h-96 overflow-y-auto font-mono text-sm space-y-1">
+        <div class="text-slate-400">📡 IR Controller iniciado - Pronto para conectar Arduino Nanos</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Estado global
+    let serialPorts = new Map();
+    let portConnections = new Map();
+    let getNanoLogs = []; // Array específico para logs GET Nano
+    let autoSaveEnabled = true; // Salvamento automático ativado
+    let pendingGetCommand = null; // Para rastrear comando GET pendente
+    
+    // WebSocket para comunicação com API
+    let apiWebSocket = null;
+    let apiConnected = false;
+
+    // Verificar suporte
+    if (!('serial' in navigator)) {
+      addLog('❌ Web Serial API não suportada neste browser', 'error');
+    }
+
+    // Conectar WebSocket com API
+    function connectToAPI() {
+      try {
+        apiWebSocket = new WebSocket('ws://localhost:8081');
+        
+        apiWebSocket.onopen = () => {
+          apiConnected = true;
+          addLog('🔗 Conectado com API via WebSocket');
+          sendConnectionStatus();
+        };
+        
+        apiWebSocket.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            handleAPIMessage(data);
+          } catch (error) {
+            addLog(`❌ Erro ao processar mensagem da API: ${error.message}`, 'error');
+          }
+        };
+        
+        apiWebSocket.onclose = () => {
+          apiConnected = false;
+          addLog('🔗 Conexão com API perdida', 'warn');
+          // Tentar reconectar em 5 segundos
+          setTimeout(connectToAPI, 5000);
+        };
+        
+        apiWebSocket.onerror = (error) => {
+          addLog('❌ Erro na conexão WebSocket com API', 'error');
+        };
+        
+      } catch (error) {
+        addLog('❌ Falha ao conectar WebSocket: ' + error.message, 'error');
+      }
+    }
+
+    // Processar mensagens da API
+    function handleAPIMessage(data) {
+      addLog(`📨 API: ${data.type} para ${data.nano} - Source: ${data.trigger_source || 'UNKNOWN'}`);
+      
+      if (data.type === 'execute_get') {
+        // API solicitou execução de GET
+        const { nano, requestId, payload, trigger_source } = data;
+        addLog(`🔄 Executando GET para ${nano} via API (ID: ${requestId}) - ${trigger_source}`);
+        
+        if (nano === 'nano1') {
+          executeAPIGetCommand('port3', 'Nano 1', requestId, trigger_source);
+        } else if (nano === 'nano2') {
+          executeAPIGetCommand('port4', 'Nano 2', requestId, trigger_source);
+        }
+      }
+    }
+
+    // Executar comando GET solicitado pela API
+    async function executeAPIGetCommand(portKey, portName, requestId, triggerSource = 'API_CALL') {
+      const portData = serialPorts.get(portKey);
+      
+      if (!portData) {
+        sendAPIResponse(portKey === 'port3' ? 'nano1' : 'nano2', null, requestId, 'Arduino não conectado', triggerSource);
+        return;
+      }
+
+      try {
+        const command = 'GET\n';
+        const encoder = new TextEncoder();
+        await portData.writer.write(encoder.encode(command));
+        
+        addLog(`📡 → ${portName}: GET (${triggerSource})`, 'send');
+        
+        // Aguardar resposta e enviar para API
+        setTimeout(() => {
+          const recentLogs = getNanoLogs.filter(log => 
+            log.message.includes(portName) && 
+            log.type === 'receive' &&
+            new Date(log.timestamp) > new Date(Date.now() - 3000)
+          );
+          
+          const responseData = recentLogs.map(log => log.message.replace(`📡 ← ${portName}: `, '')).join('\n');
+          sendAPIResponse(portKey === 'port3' ? 'nano1' : 'nano2', responseData, requestId, null, triggerSource);
+          
+        }, 2000);
+        
+      } catch (error) {
+        addLog(`❌ Erro ao enviar GET para ${portName} via API: ${error.message}`, 'error');
+        sendAPIResponse(portKey === 'port3' ? 'nano1' : 'nano2', null, requestId, error.message, triggerSource);
+      }
+    }
+
+    // Enviar resposta para API
+    function sendAPIResponse(nano, response, requestId, error = null, triggerSource = 'UNKNOWN') {
+      if (!apiConnected || !apiWebSocket) return;
+      
+      const message = {
+        type: 'get_response',
+        nano: nano,
+        response: response,
+        timestamp: new Date().toISOString(),
+        requestId: requestId,
+        trigger_source: triggerSource,
+        error: error
+      };
+      
+      apiWebSocket.send(JSON.stringify(message));
+      
+      if (error) {
+        addLog(`📨 Erro enviado para API (${triggerSource}): ${error}`, 'error');
+      } else {
+        addLog(`📨 Resposta enviada para API (${triggerSource}): ${nano}`, 'info');
+      }
+    }
+
+    // Enviar status de conexão para API
+    function sendConnectionStatus() {
+      if (!apiConnected || !apiWebSocket) return;
+      
+      const message = {
+        type: 'connection_status',
+        nano1Connected: serialPorts.has('port3'),
+        nano2Connected: serialPorts.has('port4'),
+        timestamp: new Date().toISOString()
+      };
+      
+      apiWebSocket.send(JSON.stringify(message));
+    }
+
+    // Inicializar conexão WebSocket ao carregar a página
+    window.addEventListener('load', () => {
+      setTimeout(connectToAPI, 1000);
+    });
+
+    // Funções de logging
+    function addLog(message, type = 'info') {
+      const container = document.getElementById('logContainer');
+      const timestamp = new Date().toLocaleTimeString();
+      const fullTimestamp = new Date().toISOString();
+      
+      // Se for comando GET enviado ou resposta recebida de GET, armazenar
+      if ((type === 'send' && message.includes('GET')) || 
+          (type === 'receive' && message.includes('← Nano'))) {
+        
+        const getNanoEntry = {
+          timestamp: fullTimestamp,
+          displayTime: timestamp,
+          message: message,
+          type: type,
+          isGetRelated: true
+        };
+        getNanoLogs.push(getNanoEntry);
+
+        // Se for comando GET enviado, marcar como pendente
+        if (type === 'send' && message.includes('GET')) {
+          // Extrair o tipo de trigger da mensagem
+          let triggerSource = 'MANUAL_BUTTON'; // Padrão
+          if (message.includes('(API_CALL)')) {
+            triggerSource = 'API_CALL';
+          } else if (message.includes('(MANUAL)')) {
+            triggerSource = 'MANUAL_BUTTON';
+          }
+          
+          pendingGetCommand = {
+            timestamp: fullTimestamp,
+            nano: message.includes('Nano 1') ? 'Nano1' : 'Nano2',
+            triggerSource: triggerSource
+          };
+          
+          addLog(`🔍 Trigger detectado: ${triggerSource} para ${message.includes('Nano 1') ? 'Nano 1' : 'Nano 2'}`, 'info');
+        }
+
+        // Se for resposta recebida e há comando pendente, salvar automaticamente UMA VEZ
+        if (type === 'receive' && pendingGetCommand && autoSaveEnabled && message.includes(';X')) {
+          // Aguardar um pouco e salvar apenas uma vez quando receber o marcador final 'X'
+          setTimeout(() => {
+            if (pendingGetCommand) { // Verificar se ainda está pendente
+              autoSaveGetNanoLogs();
+              pendingGetCommand = null;
+            }
+          }, 500);
+        }
+      }
+      
+      // Mostrar no UI
+      const logDiv = document.createElement('div');
+      logDiv.className = getLogClass(type);
+      logDiv.textContent = `${timestamp} - ${message}`;
+      
+      container.appendChild(logDiv);
+      container.scrollTop = container.scrollHeight;
+      
+      // Limitar logs na interface (manter últimos 200)
+      if (container.children.length > 200) {
+        container.removeChild(container.firstChild);
+      }
+    }
+
+    function getLogClass(type) {
+      switch(type) {
+        case 'error': return 'text-red-400';
+        case 'warn': return 'text-yellow-400';
+        case 'send': return 'text-blue-400';
+        case 'receive': return 'text-green-400';
+        default: return 'text-slate-300';
+      }
+    }
+
+    function clearLogs() {
+      document.getElementById('logContainer').innerHTML = '<div class="text-slate-400">📡 Logs limpos</div>';
+      getNanoLogs = [];
+      pendingGetCommand = null;
+      addLog('📡 Logs limpos - Array GET Nano resetado');
+    }
+
+    // Função para alternar auto-save
+    function toggleAutoSave() {
+      autoSaveEnabled = !autoSaveEnabled;
+      const btn = document.getElementById('autoSaveBtn');
+      
+      if (autoSaveEnabled) {
+        btn.textContent = '✅ Auto-Save ON';
+        btn.className = 'px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg text-sm transition-colors';
+        addLog('🟢 Salvamento automático ATIVADO');
+      } else {
+        btn.textContent = '❌ Auto-Save OFF';
+        btn.className = 'px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-sm transition-colors';
+        addLog('🔴 Salvamento automático DESATIVADO');
+      }
+    }
+
+    // Função para salvamento automático
+    function autoSaveGetNanoLogs() {
+      if (getNanoLogs.length === 0) return;
+
+      // Filtrar logs do comando atual (últimos relacionados ao GET pendente)
+      const cutoffTime = pendingGetCommand ? new Date(pendingGetCommand.timestamp).getTime() - 1000 : Date.now() - 5000;
+      const currentCommandLogs = getNanoLogs.filter(log => 
+        new Date(log.timestamp).getTime() >= cutoffTime
+      );
+      
+      if (currentCommandLogs.length === 0) return;
+
+      const triggerInfo = pendingGetCommand || { 
+        triggerSource: 'UNKNOWN', 
+        nano: 'Unknown' 
+      };
+
+      const getNanoData = {
+        exportDate: new Date().toISOString(),
+        description: "Logs automáticos do comando GET para Arduino Nano",
+        triggerSource: triggerInfo.triggerSource,
+        targetNano: triggerInfo.nano,
+        autoSave: true,
+        totalGetNanoLogs: currentCommandLogs.length,
+        getNanoLogs: currentCommandLogs.map(log => ({
+          ...log,
+          triggerSource: triggerInfo.triggerSource,
+          buttonClicked: triggerInfo.triggerSource === 'MANUAL_BUTTON' ? 
+            `GET ${triggerInfo.nano} Button` : triggerInfo.triggerSource
+        }))
+      };
+
+      const filename = `get_nano_auto_${triggerInfo.triggerSource}_${getTimestampString()}.json`;
+      downloadJSON(getNanoData, filename);
+      
+      addLog(`💾 Auto-save: ${currentCommandLogs.length} logs salvos (${triggerInfo.triggerSource})`);
+      addLog(`📁 Arquivo: ${filename}`);
+    }
+
+    // Função para salvar apenas logs GET Nano (manual)
+    function saveGetNanoLogs() {
+      if (getNanoLogs.length === 0) {
+        alert('Nenhum log GET Nano para salvar!');
+        return;
+      }
+
+      const getNanoData = {
+        exportDate: new Date().toISOString(),
+        description: "Logs manuais dos comandos GET para Arduino Nanos",
+        autoSave: false,
+        totalGetNanoLogs: getNanoLogs.length,
+        getNanoLogs: getNanoLogs
+      };
+
+      const filename = `get_nano_manual_${getTimestampString()}.json`;
+      downloadJSON(getNanoData, filename);
+      
+      addLog(`📡 ${getNanoLogs.length} logs GET Nano salvos manualmente`);
+      addLog(`📁 Arquivo: ${filename}`);
+    }
+
+    // Função para mostrar instruções de como mover logs
+    function showMoveInstructions() {
+      addLog('📁 INSTRUÇÕES PARA MOVER LOGS:');
+      addLog('1️⃣ Abra terminal no diretório do projeto');
+      addLog('2️⃣ Execute: ./move_logs.sh');
+      addLog('3️⃣ O script moverá automaticamente de Downloads para logs/');
+      addLog('💡 Ou mova manualmente da pasta Downloads para /home/elgin/front_teste_AM/logs/');
+    }
+
+    // Função auxiliar para download de JSON
+    function downloadJSON(data, filename) {
+      const jsonString = JSON.stringify(data, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // Função para gerar timestamp para nome do arquivo
+    function getTimestampString() {
+      const now = new Date();
+      return now.getFullYear() + 
+             String(now.getMonth() + 1).padStart(2, '0') + 
+             String(now.getDate()).padStart(2, '0') + '_' +
+             String(now.getHours()).padStart(2, '0') + 
+             String(now.getMinutes()).padStart(2, '0') + 
+             String(now.getSeconds()).padStart(2, '0');
+    }
+
+    // Funções de conexão
+    async function connectPort3() {
+      await connectPort('port3', 'Nano 1');
+    }
+
+    async function connectPort4() {
+      await connectPort('port4', 'Nano 2');
+    }
+
+    async function connectPort(portKey, portName) {
+      try {
+        addLog(`🔍 Iniciando conexão ${portName}...`);
+
+        const port = await navigator.serial.requestPort();
+        await port.open({ baudRate: 115200 });
+        
+        const portData = {
+          port,
+          writer: port.writable.getWriter(),
+          isReading: true
+        };
+        
+        serialPorts.set(portKey, portData);
+        portConnections.set(portKey, `${portName}_${Date.now()}`);
+        
+        // Resetar Arduino após conexão
+        addLog(`🔄 Resetando ${portName}...`);
+        await resetArduinoNano(portKey);
+        await delay(500);
+        
+        // Iniciar leitura
+        startReading(portKey, portName);
+        
+        // Atualizar UI
+        updatePortUI(portKey, portName, true);
+        
+        // Notificar API sobre mudança de status
+        sendConnectionStatus();
+        
+        addLog(`✅ ${portName} conectado e resetado com sucesso`);
+        
+      } catch (error) {
+        addLog(`❌ Erro ao conectar ${portName}: ${error.message}`, 'error');
+      }
+    }
+
+    async function disconnectPort3() {
+      await disconnectPort('port3', 'Nano 1');
+    }
+
+    async function disconnectPort4() {
+      await disconnectPort('port4', 'Nano 2');
+    }
+
+    async function disconnectPort(portKey, portName) {
+      const portData = serialPorts.get(portKey);
+      if (!portData) return;
+
+      try {
+        portData.isReading = false;
+        
+        if (portData.reader) {
+          await portData.reader.cancel();
+        }
+        if (portData.writer) {
+          portData.writer.releaseLock();
+        }
+        await portData.port.close();
+        
+        serialPorts.delete(portKey);
+        portConnections.delete(portKey);
+        
+        updatePortUI(portKey, portName, false);
+        
+        // Notificar API sobre mudança de status
+        sendConnectionStatus();
+        
+        addLog(`📡 ${portName} desconectado`);
+        
+      } catch (error) {
+        addLog(`❌ Erro ao desconectar ${portName}: ${error.message}`, 'error');
+      }
+    }
+
+    // Leitura de dados
+    async function startReading(portKey, portName) {
+      const portData = serialPorts.get(portKey);
+      if (!portData || !portData.isReading) return;
+
+      try {
+        const reader = portData.port.readable.getReader();
+        portData.reader = reader;
+
+        while (portData.isReading) {
+          const { value, done } = await reader.read();
+          if (done) break;
+
+          const text = new TextDecoder().decode(value);
+          if (text.trim()) {
+            addLog(`📡 ← ${portName}: ${text.trim()}`, 'receive');
+          }
+        }
+      } catch (error) {
+        if (!error.message.includes('cancelled')) {
+          addLog(`❌ Erro na leitura ${portName}: ${error.message}`, 'error');
+        }
+      } finally {
+        if (portData.reader) {
+          portData.reader.releaseLock();
+        }
+      }
+    }
+
+    // Envio de comandos
+    async function sendGetCommand(portKey) {
+      const portData = serialPorts.get(portKey);
+      const portName = portKey === 'port3' ? 'Nano 1' : 'Nano 2';
+      
+      if (!portData) {
+        alert(`${portName} não conectado!`);
+        return;
+      }
+
+      try {
+        const command = 'GET\n';
+        const encoder = new TextEncoder();
+        await portData.writer.write(encoder.encode(command));
+        
+        addLog(`📡 → ${portName}: GET (MANUAL)`, 'send');
+        
+      } catch (error) {
+        addLog(`❌ Erro ao enviar GET para ${portName}: ${error.message}`, 'error');
+      }
+    }
+
+    async function testBothPorts() {
+      addLog('🔄 Testando ambos os Arduino Nanos...');
+      
+      if (serialPorts.has('port3')) {
+        await sendGetCommand('port3');
+        await delay(500);
+      }
+      
+      if (serialPorts.has('port4')) {
+        await sendGetCommand('port4');
+        await delay(500);
+      }
+    }
+
+    // Reset Arduino
+    async function resetNano(portKey) {
+      const portData = serialPorts.get(portKey);
+      const portName = portKey === 'port3' ? 'Nano 1' : 'Nano 2';
+      
+      if (!portData) {
+        alert(`${portName} não conectado!`);
+        return;
+      }
+
+      addLog(`🔄 Resetando ${portName} manualmente...`);
+      await resetArduinoNano(portKey);
+      addLog(`✅ ${portName} resetado com sucesso`);
+    }
+
+    async function resetArduinoNano(portKey) {
+      const portData = serialPorts.get(portKey);
+      if (!portData) return;
+
+      try {
+        await portData.port.setSignals({ 
+          dataTerminalReady: false, 
+          requestToSend: false 
+        });
+        await delay(100);
+        
+        await portData.port.setSignals({ 
+          dataTerminalReady: true, 
+          requestToSend: true 
+        });
+        await delay(100);
+        
+      } catch (error) {
+        const portName = portKey === 'port3' ? 'Nano 1' : 'Nano 2';
+        addLog(`❌ Erro no reset ${portName}: ${error.message}`, 'error');
+      }
+    }
+
+    // UI helpers
+    function updatePortUI(portKey, portName, connected) {
+      const connectBtn = document.getElementById(`connect${portKey.charAt(0).toUpperCase() + portKey.slice(1)}`);
+      const disconnectBtn = document.getElementById(`disconnect${portKey.charAt(0).toUpperCase() + portKey.slice(1)}`);
+      const status = document.getElementById(`status${portKey.charAt(0).toUpperCase() + portKey.slice(1)}`);
+      
+      if (connected) {
+        connectBtn.style.display = 'none';
+        disconnectBtn.style.display = 'inline-block';
+        status.textContent = 'Conectado ✅';
+        status.className = 'text-sm text-green-400';
+      } else {
+        connectBtn.style.display = 'inline-block';
+        disconnectBtn.style.display = 'none';
+        status.textContent = 'Desconectado';
+        status.className = 'text-sm text-slate-500';
+      }
+    }
+
+    function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+  </script>
+</body>
+</html>
