@@ -163,27 +163,27 @@
 
     // Processar mensagens da API
     function handleAPIMessage(data) {
-      addLog(`📨 API: ${data.type} para ${data.nano}`);
+      addLog(`📨 API: ${data.type} para ${data.nano} - Source: ${data.trigger_source || 'UNKNOWN'}`);
       
       if (data.type === 'execute_get') {
         // API solicitou execução de GET
-        const { nano, requestId, payload } = data;
-        addLog(`🔄 Executando GET para ${nano} via API (ID: ${requestId})`);
+        const { nano, requestId, payload, trigger_source } = data;
+        addLog(`🔄 Executando GET para ${nano} via API (ID: ${requestId}) - ${trigger_source}`);
         
         if (nano === 'nano1') {
-          executeAPIGetCommand('port3', 'Nano 1', requestId);
+          executeAPIGetCommand('port3', 'Nano 1', requestId, trigger_source);
         } else if (nano === 'nano2') {
-          executeAPIGetCommand('port4', 'Nano 2', requestId);
+          executeAPIGetCommand('port4', 'Nano 2', requestId, trigger_source);
         }
       }
     }
 
     // Executar comando GET solicitado pela API
-    async function executeAPIGetCommand(portKey, portName, requestId) {
+    async function executeAPIGetCommand(portKey, portName, requestId, triggerSource = 'API_CALL') {
       const portData = serialPorts.get(portKey);
       
       if (!portData) {
-        sendAPIResponse(portKey === 'port3' ? 'nano1' : 'nano2', null, requestId, 'Arduino não conectado');
+        sendAPIResponse(portKey === 'port3' ? 'nano1' : 'nano2', null, requestId, 'Arduino não conectado', triggerSource);
         return;
       }
 
@@ -192,7 +192,7 @@
         const encoder = new TextEncoder();
         await portData.writer.write(encoder.encode(command));
         
-        addLog(`📡 → ${portName}: GET (API Request)`, 'send');
+        addLog(`📡 → ${portName}: GET (${triggerSource})`, 'send');
         
         // Aguardar resposta e enviar para API
         setTimeout(() => {
@@ -203,18 +203,18 @@
           );
           
           const responseData = recentLogs.map(log => log.message.replace(`📡 ← ${portName}: `, '')).join('\n');
-          sendAPIResponse(portKey === 'port3' ? 'nano1' : 'nano2', responseData, requestId);
+          sendAPIResponse(portKey === 'port3' ? 'nano1' : 'nano2', responseData, requestId, null, triggerSource);
           
         }, 2000);
         
       } catch (error) {
         addLog(`❌ Erro ao enviar GET para ${portName} via API: ${error.message}`, 'error');
-        sendAPIResponse(portKey === 'port3' ? 'nano1' : 'nano2', null, requestId, error.message);
+        sendAPIResponse(portKey === 'port3' ? 'nano1' : 'nano2', null, requestId, error.message, triggerSource);
       }
     }
 
     // Enviar resposta para API
-    function sendAPIResponse(nano, response, requestId, error = null) {
+    function sendAPIResponse(nano, response, requestId, error = null, triggerSource = 'UNKNOWN') {
       if (!apiConnected || !apiWebSocket) return;
       
       const message = {
@@ -223,15 +223,16 @@
         response: response,
         timestamp: new Date().toISOString(),
         requestId: requestId,
+        trigger_source: triggerSource,
         error: error
       };
       
       apiWebSocket.send(JSON.stringify(message));
       
       if (error) {
-        addLog(`📨 Erro enviado para API: ${error}`, 'error');
+        addLog(`📨 Erro enviado para API (${triggerSource}): ${error}`, 'error');
       } else {
-        addLog(`📨 Resposta enviada para API: ${nano}`, 'info');
+        addLog(`📨 Resposta enviada para API (${triggerSource}): ${nano}`, 'info');
       }
     }
 
@@ -275,19 +276,32 @@
 
         // Se for comando GET enviado, marcar como pendente
         if (type === 'send' && message.includes('GET')) {
+          // Extrair o tipo de trigger da mensagem
+          let triggerSource = 'MANUAL_BUTTON'; // Padrão
+          if (message.includes('(API_CALL)')) {
+            triggerSource = 'API_CALL';
+          } else if (message.includes('(MANUAL)')) {
+            triggerSource = 'MANUAL_BUTTON';
+          }
+          
           pendingGetCommand = {
             timestamp: fullTimestamp,
-            nano: message.includes('Nano 1') ? 'Nano1' : 'Nano2'
+            nano: message.includes('Nano 1') ? 'Nano1' : 'Nano2',
+            triggerSource: triggerSource
           };
+          
+          addLog(`🔍 Trigger detectado: ${triggerSource} para ${message.includes('Nano 1') ? 'Nano 1' : 'Nano 2'}`, 'info');
         }
 
-        // Se for resposta recebida e há comando pendente, salvar automaticamente
-        if (type === 'receive' && pendingGetCommand && autoSaveEnabled) {
-          // Aguardar um pouco para capturar todas as linhas da resposta
+        // Se for resposta recebida e há comando pendente, salvar automaticamente UMA VEZ
+        if (type === 'receive' && pendingGetCommand && autoSaveEnabled && message.includes(';X')) {
+          // Aguardar um pouco e salvar apenas uma vez quando receber o marcador final 'X'
           setTimeout(() => {
-            autoSaveGetNanoLogs();
-            pendingGetCommand = null;
-          }, 1000);
+            if (pendingGetCommand) { // Verificar se ainda está pendente
+              autoSaveGetNanoLogs();
+              pendingGetCommand = null;
+            }
+          }, 500);
         }
       }
       
@@ -342,20 +356,38 @@
     function autoSaveGetNanoLogs() {
       if (getNanoLogs.length === 0) return;
 
-      const recentLogs = getNanoLogs.slice(-10); // Pegar últimos 10 logs relacionados ao GET atual
+      // Filtrar logs do comando atual (últimos relacionados ao GET pendente)
+      const cutoffTime = pendingGetCommand ? new Date(pendingGetCommand.timestamp).getTime() - 1000 : Date.now() - 5000;
+      const currentCommandLogs = getNanoLogs.filter(log => 
+        new Date(log.timestamp).getTime() >= cutoffTime
+      );
       
+      if (currentCommandLogs.length === 0) return;
+
+      const triggerInfo = pendingGetCommand || { 
+        triggerSource: 'UNKNOWN', 
+        nano: 'Unknown' 
+      };
+
       const getNanoData = {
         exportDate: new Date().toISOString(),
         description: "Logs automáticos do comando GET para Arduino Nano",
+        triggerSource: triggerInfo.triggerSource,
+        targetNano: triggerInfo.nano,
         autoSave: true,
-        totalGetNanoLogs: recentLogs.length,
-        getNanoLogs: recentLogs
+        totalGetNanoLogs: currentCommandLogs.length,
+        getNanoLogs: currentCommandLogs.map(log => ({
+          ...log,
+          triggerSource: triggerInfo.triggerSource,
+          buttonClicked: triggerInfo.triggerSource === 'MANUAL_BUTTON' ? 
+            `GET ${triggerInfo.nano} Button` : triggerInfo.triggerSource
+        }))
       };
 
-      const filename = `get_nano_auto_${getTimestampString()}.json`;
+      const filename = `get_nano_auto_${triggerInfo.triggerSource}_${getTimestampString()}.json`;
       downloadJSON(getNanoData, filename);
       
-      addLog(`💾 Auto-save: ${recentLogs.length} logs salvos automaticamente`);
+      addLog(`💾 Auto-save: ${currentCommandLogs.length} logs salvos (${triggerInfo.triggerSource})`);
       addLog(`📁 Arquivo: ${filename}`);
     }
 
@@ -544,7 +576,7 @@
         const encoder = new TextEncoder();
         await portData.writer.write(encoder.encode(command));
         
-        addLog(`📡 → ${portName}: GET`, 'send');
+        addLog(`📡 → ${portName}: GET (MANUAL)`, 'send');
         
       } catch (error) {
         addLog(`❌ Erro ao enviar GET para ${portName}: ${error.message}`, 'error');
